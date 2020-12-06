@@ -20,10 +20,11 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	tg, err := tgbotapi.NewBotAPI("1497320412:AAE8dIr1RzaJfgIhmHJIq9mSg-QmnZCtFJA")
+	tg, err := tgbotapi.NewBotAPI(config.Token)
 	if err != nil {
 		logger.Fatal(err)
 	}
+
 	tg.Debug = true
 	logger.Info("Authorized on account ", tg.Self.UserName)
 	arc, err := lru.NewARC(256)
