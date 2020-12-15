@@ -2,7 +2,7 @@ package main
 
 import (
 	"bloop/internal/bloop"
-	"bloop/internal/cache/hashlru"
+	"bloop/internal/cache/cachelru"
 	"bloop/internal/logging"
 	"bloop/internal/shutdown"
 	"fmt"
@@ -58,7 +58,7 @@ func main() {
 		log.Fatal(fmt.Errorf("new arc cache: %v", err))
 	}
 
-	cache := hashlru.NewLRU(arc)
+	cache := cachelru.NewLRU(arc)
 	manager := bloop.NewManager(tg, cache, &config)
 	if err := manager.Run(ctx); err != nil {
 		log.Fatal(fmt.Errorf("run: %v", err))

@@ -1,4 +1,4 @@
-package hashlru
+package cachelru
 
 import lru "github.com/hashicorp/golang-lru"
 
