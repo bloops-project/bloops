@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"bloop/internal/logging"
 	"context"
 	"fmt"
 	"github.com/enescakir/emoji"
@@ -16,18 +17,29 @@ const (
 	stateKindCategories stateKind = iota + 1
 	stateKindRounds
 	stateKindLetters
+	stateKindVote
+	stateKindDone
 )
 
 const DefaultRoundNum = 3
 
-var stages = []stateKind{stateKindCategories, stateKindRounds, stateKindLetters}
+var stages = []stateKind{stateKindCategories, stateKindRounds, stateKindLetters, stateKindVote, stateKindDone}
 
 var (
-	lettersList = []string{"А", "Б", "В", "Г", "Д", "Е", "Ж", "З", "И", "К", "Л", "М", "Н", "О", "П", "Р", "С", "Т",
-		"У", "Ф", "Х", "Ц", "Ч", "Ш", "Э", "Ю", "Я"}
+	lettersList = []Letter{
+		{Text: "А", Status: true}, {Text: "Б", Status: true}, {Text: "В", Status: true}, {Text: "Г", Status: true},
+		{Text: "Д", Status: true}, {Text: "Е", Status: true}, {Text: "Ж", Status: true}, {Text: "З", Status: true},
+		{Text: "И", Status: true}, {Text: "К", Status: true}, {Text: "Л", Status: true}, {Text: "М", Status: true},
+		{Text: "Н", Status: true}, {Text: "О", Status: true}, {Text: "П", Status: true}, {Text: "Р", Status: true},
+		{Text: "С", Status: true}, {Text: "Т", Status: true}, {Text: "У", Status: true}, {Text: "Ф", Status: true},
+		{Text: "Х", Status: true}, {Text: "Ц"}, {Text: "Ч"}, {Text: "Ш"}, {Text: "Э"}, {Text: "Ю"}, {Text: "Я"}}
 
-	categoriesList = []string{"Страна", "Город", "Овощ или фрукт", "Имя", "Знаменитость", "Бренд", "Животное",
-		"Технология", "Литературное произведение", "Любое слово"}
+	categoriesList = []Category{
+		{Text: "Страна"}, {Text: "Город", Status: true}, {Text: "Овощ или фрукт", Status: true},
+		{Text: "Имя", Status: true}, {Text: "Знаменитость"}, {Text: "Бренд", Status: true},
+		{Text: "Животное", Status: true}, {Text: "Технология"}, {Text: "Литературное произведение"},
+		{Text: "Любое слово"},
+	}
 
 	roundsList = []int{1, 2, 3, 4, 5}
 )
@@ -46,8 +58,7 @@ func NewSession(
 	tg *tgbotapi.BotAPI,
 	chatId int64,
 	authorId int64,
-	done func(session *Session) error,
-	abort func(session *Session) error,
+	doneFn func(session *Session) error,
 	timeout time.Duration,
 ) (*Session, error) {
 	state := newStateMachine(stages...)
@@ -59,65 +70,61 @@ func NewSession(
 		AuthorId:        authorId,
 		RoundsNum:       DefaultRoundNum,
 		timeout:         timeout,
-		doneFn:          done,
-		abortFn:         abort,
+		doneFn:          doneFn,
 		controlHandlers: map[string]CommandHandlerFn{},
-		doneCh:          make(chan struct{}, 1),
 		CreatedAt:       time.Now(),
 	}
 
 	for _, category := range categoriesList {
-		s.Categories = append(s.Categories, &Category{
-			Text: category,
-		})
+		category := category
+		s.Categories = append(s.Categories, category)
 	}
 
 	for _, letter := range lettersList {
-		s.Letters = append(s.Letters, &Letter{
-			Text:   letter,
-			Status: true,
-		})
+		s.Letters = append(s.Letters, letter)
 	}
 
 	if err := s.bindControlCommand(commandNextText, CommandKindNextAction); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bind control command: %v", err)
 	}
 
 	if err := s.bindControlCommand(commandPrevText, CommandKindPrevAction); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bind control command: %v", err)
 	}
 
 	if err := s.bindControlCommand(commandDoneText, CommandKindDoneAction); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bind control command: %v", err)
 	}
 
 	return s, nil
 }
 
 type Session struct {
-	tg              *tgbotapi.BotAPI
-	state           *stateMachine
-	messageCh       chan struct{}
-	doneCh          chan struct{}
-	runSema         sync.Once
-	AuthorId        int64
-	Categories      []*Category
-	Letters         []*Letter
-	ChatId          int64
-	RoundsNum       int
-	messageId       int
-	CreatedAt       time.Time
+	AuthorId   int64
+	Categories []Category
+	Letters    []Letter
+	RoundsNum  int
+	Vote       bool
+	ChatId     int64
+	CreatedAt  time.Time
+
+	tg        *tgbotapi.BotAPI
+	state     *stateMachine
+	messageCh chan struct{}
+	sema      sync.Once
+
+	messageId int
+
 	timeout         time.Duration
 	controlHandlers map[string]CommandHandlerFn
 	cancel          func()
-	abortFn         func(session *Session) error
 	doneFn          func(session *Session) error
 }
 
 func (bs *Session) Run(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, bs.timeout)
 	bs.cancel = cancel
-	bs.runSema.Do(func() {
+	bs.sema.Do(func() {
 		go bs.loop(ctx)
 		bs.messageCh <- struct{}{}
 	})
@@ -130,13 +137,13 @@ func (bs *Session) Stop() {
 func (bs *Session) Execute(upd tgbotapi.Update) error {
 	if upd.CallbackQuery != nil {
 		if err := bs.executeCbQuery(upd.CallbackQuery); err != nil {
-			return err
+			return fmt.Errorf("execute cb query: %v", err)
 		}
 	}
 
 	if upd.Message != nil {
 		if err := bs.executeMessageQuery(upd.Message); err != nil {
-			return err
+			return fmt.Errorf("execute message query: %v", err)
 		}
 	}
 
@@ -144,17 +151,14 @@ func (bs *Session) Execute(upd tgbotapi.Update) error {
 }
 
 func (bs *Session) loop(ctx context.Context) {
+	logger := logging.FromContext(ctx).Named("builder.loop")
 	for {
 		select {
 		case <-ctx.Done():
-			if err := bs.abortFn(bs); err != nil {
-				fmt.Println(err)
-			}
-			return
-		case <-bs.doneCh:
 			if err := bs.doneFn(bs); err != nil {
-				fmt.Println(err)
+				logger.Errorf("done function: %v", err)
 			}
+
 			return
 		case <-bs.messageCh:
 			switch bs.state.curr() {
@@ -163,7 +167,7 @@ func (bs *Session) loop(ctx context.Context) {
 				msg.ReplyMarkup = bs.appendControlButtons(bs.categoriesMarkup())
 				output, err := bs.tg.Send(msg)
 				if err != nil {
-					fmt.Println(err)
+					logger.Errorf("send categories: %v", err)
 				}
 				bs.messageId = output.MessageID
 			case stateKindRounds:
@@ -171,7 +175,7 @@ func (bs *Session) loop(ctx context.Context) {
 				msg.ReplyMarkup = bs.appendControlButtons(bs.roundsMarkup())
 				output, err := bs.tg.Send(msg)
 				if err != nil {
-					fmt.Println(err)
+					logger.Errorf("send round num: %v", err)
 				}
 				bs.messageId = output.MessageID
 			case stateKindLetters:
@@ -179,7 +183,23 @@ func (bs *Session) loop(ctx context.Context) {
 				msg.ReplyMarkup = bs.appendControlButtons(bs.lettersMarkup())
 				output, err := bs.tg.Send(msg)
 				if err != nil {
-					fmt.Println(err)
+					logger.Errorf("send letters: %v", err)
+				}
+				bs.messageId = output.MessageID
+			case stateKindVote:
+				msg := tgbotapi.NewMessage(bs.ChatId, textVoteAllowed)
+				msg.ReplyMarkup = bs.appendControlButtons(bs.voteMarkup())
+				output, err := bs.tg.Send(msg)
+				if err != nil {
+					logger.Errorf("send vote: %v", err)
+				}
+				bs.messageId = output.MessageID
+			case stateKindDone:
+				msg := tgbotapi.NewMessage(bs.ChatId, textConfigurationDone)
+				msg.ReplyMarkup = bs.appendControlButtons(tgbotapi.NewInlineKeyboardMarkup())
+				output, err := bs.tg.Send(msg)
+				if err != nil {
+					logger.Errorf("send done: %v", err)
 				}
 				bs.messageId = output.MessageID
 			}
@@ -189,9 +209,8 @@ func (bs *Session) loop(ctx context.Context) {
 
 func (bs *Session) clickOnPrev(query *tgbotapi.CallbackQuery) error {
 	bs.state.prev()
-	if _, err := bs.tg.AnswerCallbackQuery(
-		tgbotapi.NewCallback(query.ID, commandPrevText)); err != nil {
-		return err
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, commandPrevText)); err != nil {
+		return fmt.Errorf("send answer msg: %v", err)
 	}
 	bs.messageCh <- struct{}{}
 
@@ -200,9 +219,8 @@ func (bs *Session) clickOnPrev(query *tgbotapi.CallbackQuery) error {
 
 func (bs *Session) clickOnNext(query *tgbotapi.CallbackQuery) error {
 	bs.state.next()
-	if _, err := bs.tg.AnswerCallbackQuery(
-		tgbotapi.NewCallback(query.ID, commandNextText)); err != nil {
-		return err
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, commandNextText)); err != nil {
+		return fmt.Errorf("send answer msg: %v", err)
 	}
 	bs.messageCh <- struct{}{}
 
@@ -210,15 +228,14 @@ func (bs *Session) clickOnNext(query *tgbotapi.CallbackQuery) error {
 }
 
 func (bs *Session) clickOnDone(query *tgbotapi.CallbackQuery) error {
-	if _, err := bs.tg.AnswerCallbackQuery(
-		tgbotapi.NewCallback(query.ID, commandDoneText)); err != nil {
-		return err
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, commandDoneText)); err != nil {
+		return fmt.Errorf("send answer msg: %v", err)
 	}
 
 	if !bs.categoriesExist() {
 		msg := tgbotapi.NewMessage(bs.ChatId, textAddLeastCategoryToComplete)
 		if _, err := bs.tg.Send(msg); err != nil {
-			return err
+			return fmt.Errorf("send msg: %v", err)
 		}
 
 		return nil
@@ -227,13 +244,13 @@ func (bs *Session) clickOnDone(query *tgbotapi.CallbackQuery) error {
 	if !bs.lettersExist() {
 		msg := tgbotapi.NewMessage(bs.ChatId, textAddLeastOneLetterToComplete)
 		if _, err := bs.tg.Send(msg); err != nil {
-			return err
+			return fmt.Errorf("send msg: %v", err)
 		}
 
 		return nil
 	}
 
-	bs.doneCh <- struct{}{}
+	bs.cancel()
 
 	return nil
 }
@@ -280,10 +297,10 @@ func (bs *Session) isControlCmd(command string) bool {
 
 func (bs *Session) clickOnCategories(query *tgbotapi.CallbackQuery) error {
 	var answer string
-	for _, category := range bs.Categories {
+	for i, category := range bs.Categories {
 		if query.Data == category.Text {
-			category.Status = !category.Status
-			if category.Status {
+			bs.Categories[i].Status = !category.Status
+			if bs.Categories[i].Status {
 				answer = fmt.Sprintf(textAddedCategory, category.Text)
 			} else {
 				answer = fmt.Sprintf(textDeletedCategory, category.Text)
@@ -291,14 +308,13 @@ func (bs *Session) clickOnCategories(query *tgbotapi.CallbackQuery) error {
 		}
 	}
 
-	if _, err := bs.tg.AnswerCallbackQuery(
-		tgbotapi.NewCallback(query.ID, answer)); err != nil {
-		return err
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, answer)); err != nil {
+		return fmt.Errorf("send answer msg: %v", err)
 	}
 
 	msg := tgbotapi.NewEditMessageReplyMarkup(bs.ChatId, bs.messageId, bs.appendControlButtons(bs.categoriesMarkup()))
 	if _, err := bs.tg.Send(msg); err != nil {
-		return err
+		return fmt.Errorf("send msg: %v", err)
 	}
 
 	return nil
@@ -307,12 +323,11 @@ func (bs *Session) clickOnCategories(query *tgbotapi.CallbackQuery) error {
 func (bs *Session) clickOnRoundsNum(query *tgbotapi.CallbackQuery) error {
 	n, err := strconv.Atoi(query.Data)
 	if err != nil {
-		return err
+		return fmt.Errorf("strconv: %v", err)
 	}
 
-	if _, err := bs.tg.AnswerCallbackQuery(
-		tgbotapi.NewCallback(query.ID, fmt.Sprintf(textRoundNum, n))); err != nil {
-		return err
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, fmt.Sprintf(textRoundNum, n))); err != nil {
+		return fmt.Errorf("send answer msg: %v", err)
 	}
 
 	bs.RoundsNum = n
@@ -324,10 +339,10 @@ func (bs *Session) clickOnRoundsNum(query *tgbotapi.CallbackQuery) error {
 
 func (bs *Session) clickOnLetter(query *tgbotapi.CallbackQuery) error {
 	var answer string
-	for _, letter := range bs.Letters {
+	for i, letter := range bs.Letters {
 		if query.Data == letter.Text {
-			letter.Status = !letter.Status
-			if letter.Status {
+			bs.Letters[i].Status = !letter.Status
+			if bs.Letters[i].Status {
 				answer = fmt.Sprintf(textAddedLetter, letter.Text)
 			} else {
 				answer = fmt.Sprintf(textDeletedLetter, letter.Text)
@@ -335,29 +350,45 @@ func (bs *Session) clickOnLetter(query *tgbotapi.CallbackQuery) error {
 		}
 	}
 
-	if _, err := bs.tg.AnswerCallbackQuery(
-		tgbotapi.NewCallback(query.ID, answer)); err != nil {
-		return err
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, answer)); err != nil {
+		return fmt.Errorf("send answer msg: %v", err)
 	}
 
 	msg := tgbotapi.NewEditMessageReplyMarkup(bs.ChatId, bs.messageId, bs.appendControlButtons(bs.lettersMarkup()))
 	if _, err := bs.tg.Send(msg); err != nil {
-		return err
+		return fmt.Errorf("send msg: %v", err)
 	}
+
+	return nil
+}
+
+func (bs *Session) clickOnVote(query *tgbotapi.CallbackQuery) error {
+	value, err := strconv.ParseBool(query.Data)
+	if err != nil {
+		return fmt.Errorf("strconv: %v", err)
+	}
+
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, commandNextText)); err != nil {
+		return fmt.Errorf("send answer msg: %v", err)
+	}
+
+	bs.Vote = value
+	bs.state.next()
+	bs.messageCh <- struct{}{}
 
 	return nil
 }
 
 func (bs *Session) executeMessageQuery(query *tgbotapi.Message) error {
 	if bs.state.curr() == stateKindCategories {
-		bs.Categories = append(bs.Categories, &Category{
+		bs.Categories = append(bs.Categories, Category{
 			Text:   query.Text,
 			Status: true,
 		})
 
 		msg := tgbotapi.NewEditMessageReplyMarkup(bs.ChatId, bs.messageId, bs.appendControlButtons(bs.categoriesMarkup()))
 		if _, err := bs.tg.Send(msg); err != nil {
-			return err
+			return fmt.Errorf("send msg: %v", err)
 		}
 	}
 
@@ -372,7 +403,7 @@ func (bs *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 	if bs.isControlCmd(query.Data) {
 		fn := bs.controlHandlers[query.Data]
 		if err := fn(query); err != nil {
-			return err
+			return fmt.Errorf("fn : %v", err)
 		}
 
 		return nil
@@ -381,34 +412,45 @@ func (bs *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 	switch bs.state.curr() {
 	case stateKindCategories:
 		if err := bs.clickOnCategories(query); err != nil {
-			return err
+			return fmt.Errorf("click on categories: %v", err)
 		}
 	case stateKindRounds:
 		if err := bs.clickOnRoundsNum(query); err != nil {
-			return err
+			return fmt.Errorf("click on rounds num: %v", err)
 		}
 	case stateKindLetters:
 		if err := bs.clickOnLetter(query); err != nil {
-			return err
+			return fmt.Errorf("click on letter: %v", err)
+		}
+	case stateKindVote:
+		if err := bs.clickOnVote(query); err != nil {
+			return fmt.Errorf("click on vote: %v", err)
 		}
 	}
 
 	return nil
 }
 
+func (bs *Session) voteMarkup() tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData(textVoteYes, "true"),
+		tgbotapi.NewInlineKeyboardButtonData(textVoteNo, "false"),
+	))
+}
+
 func (bs *Session) lettersMarkup() tgbotapi.InlineKeyboardMarkup {
 	markup := tgbotapi.NewInlineKeyboardMarkup()
 	row := tgbotapi.NewInlineKeyboardRow()
-	for _, category := range bs.Letters {
+	for _, letter := range bs.Letters {
 		if len(row) == 6 {
 			markup.InlineKeyboard = append(markup.InlineKeyboard, row)
 			row = tgbotapi.NewInlineKeyboardRow()
 		}
 		var btn tgbotapi.InlineKeyboardButton
-		if category.Status {
-			btn = tgbotapi.NewInlineKeyboardButtonData(emoji.CheckMark.String()+" "+category.Text, category.Text)
+		if letter.Status {
+			btn = tgbotapi.NewInlineKeyboardButtonData(emoji.CheckMarkButton.String()+" "+letter.Text, letter.Text)
 		} else {
-			btn = tgbotapi.NewInlineKeyboardButtonData(emoji.CrossMark.String()+" "+category.Text, category.Text)
+			btn = tgbotapi.NewInlineKeyboardButtonData(emoji.CrossMark.String()+" "+letter.Text, letter.Text)
 		}
 
 		row = append(row, btn)
@@ -442,7 +484,7 @@ func (bs *Session) categoriesMarkup() tgbotapi.InlineKeyboardMarkup {
 		}
 		var btn tgbotapi.InlineKeyboardButton
 		if category.Status {
-			btn = tgbotapi.NewInlineKeyboardButtonData(emoji.CheckMark.String()+" "+category.Text, category.Text)
+			btn = tgbotapi.NewInlineKeyboardButtonData(emoji.CheckMarkButton.String()+" "+category.Text, category.Text)
 		} else {
 			btn = tgbotapi.NewInlineKeyboardButtonData(emoji.CrossMark.String()+" "+category.Text, category.Text)
 		}

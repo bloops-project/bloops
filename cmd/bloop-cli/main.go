@@ -25,6 +25,20 @@ func main() {
 		logger.Fatal(fmt.Errorf("processing the config: %v", err))
 	}
 
+	var token string
+	fmt.Println("Enter your bot token:")
+	for {
+		_, err := fmt.Scanf("%s\n", &token)
+		if err != nil {
+			if err.Error() == "unexpected newline" {
+				continue
+			}
+			logger.Fatal(fmt.Errorf("read token: %v", err))
+		}
+		break
+	}
+	_, _ = fmt.Fprint(os.Stdout, "token received: ", token, "\n")
+	config.Token = token
 	if config.Token == "" {
 		logger.Fatalf(
 			"Bot token not found, please visit %s to register your bot and get a token",

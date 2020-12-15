@@ -15,10 +15,6 @@ func newStateMachine(kind ...stateKind) *stateMachine {
 			machine.transitions.PushBack(kind[i])
 		}
 
-		machine.transitions.PushFront(stateKindLetters)
-		machine.transitions.PushFront(stateKindRounds)
-		machine.transitions.PushFront(stateKindCategories)
-
 		machine.front()
 	}
 
