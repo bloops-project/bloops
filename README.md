@@ -1,4 +1,4 @@
-# blooobot
+# Blooobot - telegram bot
 ```
 ___.    .__                                   ___.              __   
 \_ |__  |  |    ____    ____    ____  ______  \_ |__    ____  _/  |_ 
@@ -8,10 +8,8 @@ ___.    .__                                   ___.              __
      \/                               |__|         \/                
                                                                      
 ```
-
 ## What is blooopbot?
-What is blooopbot? This is a game similar to Tiktok quizzes, made in the telegram bot format
-his project is only in Russian. I didn't do localization, because this is a small pet project, and I'm too lazy.
+What is blooopbot? This is a telegram bot created to organize offline games similar to tiktok quizzes. bloop has no localization and is only in Russian.
 
 ## Why?
 It's just fun, it's a little activity in the family for the holidays
