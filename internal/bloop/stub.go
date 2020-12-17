@@ -71,4 +71,5 @@ var (
 		"то игрок оставляется свои очки, а если нет - теряет их. Если 50 на 50, то игрок получит половину очков\n\n" +
 		"Обратная связь: @robotomize\n" +
 		"Проект на github: [bloop](https://robotomize.me)"
+	textChatNotAllowed = emoji.WomanGesturingNo.String() + " Бот не работает с групповыми чатами =("
 )

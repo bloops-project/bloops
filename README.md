@@ -12,7 +12,7 @@ ___.    .__                                   ___.              __
 What is blooopbot? This is a telegram bot created to organize offline games similar to tiktok quizzes. bloop has no localization and is only in Russian.
 
 ## Why?
-It's just fun, it's a little activity in the family for the holidays
+🎄🎄🎄 It's just fun, it's a little activity in the family for the holidays
 
 ## Location
 [bloop in Telegram](https://t.me/blooopbot)

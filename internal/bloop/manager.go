@@ -82,6 +82,14 @@ func (m *Manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 		case update := <-updCh:
 			user := m.recvUser(update)
 			if update.Message != nil {
+				if update.Message.Chat.IsGroup() || update.Message.Chat.IsSuperGroup() {
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, textChatNotAllowed)
+					msg.ParseMode = tgbotapi.ModeMarkdown
+					if _, err := m.tg.Send(msg); err != nil {
+						logger.Errorf("send msg: %v", err)
+					}
+					return
+				}
 				if err := m.handleCommand(user, update); err != nil {
 					logger.Errorf("handle command query: %v", err)
 				}
