@@ -393,7 +393,7 @@ PlayerLoop:
 				return err
 			}
 
-			if r.dice() > 2 {
+			if r.dice() > 3 {
 				rate.Bloops = true
 				msg := tgbotapi.NewDeleteMessage(player.ChatId, messageId)
 				if _, err := r.tg.Send(msg); err != nil {
