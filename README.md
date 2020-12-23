@@ -1,4 +1,4 @@
-# Blooobot - telegram bot
+# Bloosbot - telegram bot
 ```
 ___.   .__                                 ___.           __   
 \_ |__ |  |   ____   ____ ______  ______   \_ |__   _____/  |_ 
