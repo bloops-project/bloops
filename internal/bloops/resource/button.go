@@ -7,10 +7,10 @@ import (
 
 var (
 	// common menu button text
-	CreateButtonText  = "Создать игру"
+	CreateButtonText  = emoji.Fire.String() + " Создать игру"
 	LeaveButtonText   = emoji.ChequeredFlag.String() + " Выйти"
 	StartButtonText   = emoji.Rocket.String() + " Начать"
-	JoinButtonText    = "Присоединиться к игре"
+	JoinButtonText    = emoji.VideoGame.String() + " Присоединиться к игре"
 	RatingButtonText  = emoji.Star.String() + " Таблица лидеров"
 	RuleButtonText    = "Правила"
 	ProfileButtonText = emoji.Alien.String() + " Профиль"

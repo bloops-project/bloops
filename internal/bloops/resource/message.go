@@ -19,7 +19,7 @@ var (
 		"Отправь его своим друзьям, чтобы они смогли присоединиться " + emoji.VideoGame.String()
 	TextSettingsMsg = emoji.Gear.String() + " Настраиваем параметры игры"
 
-	TextGreetingMsg = emoji.ChristmasTree.String() + "Привет, %s\n\n" +
+	TextGreetingMsg = emoji.ChristmasTree.String() + emoji.ChristmasTree.String() + emoji.ChristmasTree.String() + "Привет, %s\n\n" +
 		"Это @blooopbot " + emoji.Robot.String() + " - бот, для игры в небольшие викторины, где участники должны за " + emoji.Stopwatch.String() + " 30сек " +
 		"назвать по одному слову из нескольких категорий, начинающихся на определенную букву\n\n" +
 		"Бот" + emoji.Robot.String() + " предназначен для ведения игр в оффлайне." +
@@ -31,7 +31,7 @@ var (
 		"/profile - позволяет посмотреть профиль другого игрока\n" +
 		"/add - если ты зашел в игру ты можешь добавить игроков, у которых нет телеграмма. Задания будут прилетать тебе\n\n" +
 		"*Обратная связь:* @robotomize\n" +
-		"*Проект на github:* [bloop](https://robotomize.me)"
+		"*Проект на github:* [bloops_bot](https://github.com/robotomize/bloopsbot)"
 
 	TextRulesMsg = emoji.Bookmark.String() + " *Правила игры*\n\n" +
 		"Участники должны за " + emoji.Stopwatch.String() + " 30сек " +
