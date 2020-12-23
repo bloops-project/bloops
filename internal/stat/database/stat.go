@@ -111,8 +111,13 @@ func (db *DB) FetchProfileStat(userId int64) (model.AggregationStat, error) {
 		aggregationStat.Count++
 	}
 
-	aggregationStat.AvgPoints = sumPoints / pointsNum
-	aggregationStat.AvgDuration = time.Duration(sumDuration.Nanoseconds() / int64(pointsNum))
+	if pointsNum > 0 {
+		aggregationStat.AvgPoints = sumPoints / pointsNum
+	}
+
+	if pointsNum > 0 {
+		aggregationStat.AvgDuration = time.Duration(sumDuration.Nanoseconds() / int64(pointsNum))
+	}
 
 	return aggregationStat, nil
 }
