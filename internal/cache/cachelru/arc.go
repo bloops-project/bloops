@@ -1,17 +1,28 @@
 package cachelru
 
-import lru "github.com/hashicorp/golang-lru"
+import (
+	"bloop/internal/cache"
+	"fmt"
+	lru "github.com/hashicorp/golang-lru"
+)
 
-func NewLRU(lru *lru.ARCCache) *LRU {
-	return &LRU{cache: lru}
+func NewLRU(size int) (*LRU, error) {
+	c, err := lru.NewARC(size)
+	if err != nil {
+		return nil, fmt.Errorf("lru new instance of lru arc cache: %v", err)
+	}
+
+	return &LRU{cache: c}, nil
 }
+
+var _ cache.Cache = (*LRU)(nil)
 
 type LRU struct {
 	cache *lru.ARCCache
 }
 
-func (c *LRU) Get(x interface{}) (interface{}, bool) {
-	return c.cache.Get(x)
+func (c *LRU) Get(key interface{}) (interface{}, bool) {
+	return c.cache.Get(key)
 }
 
 func (c *LRU) Add(key, value interface{}) {
@@ -20,4 +31,8 @@ func (c *LRU) Add(key, value interface{}) {
 
 func (c *LRU) Keys() []interface{} {
 	return c.cache.Keys()
+}
+
+func (c *LRU) Delete(key interface{}) {
+	c.cache.Remove(key)
 }
