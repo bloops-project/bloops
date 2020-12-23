@@ -198,10 +198,18 @@ func (r *Session) persistStat() error {
 		stat.SumPoints = sumPoints
 		stat.BestPoints = bestPoints
 		stat.WorstPoints = worstPoints
-		stat.AveragePoints = sumPoints / pointsNum
+
+		if pointsNum > 0 {
+			stat.AveragePoints = sumPoints / pointsNum
+		}
+
 		stat.BestDuration = bestDuration
 		stat.WorstDuration = worstDuration
-		stat.AverageDuration = sumDuration / durationNum
+
+		if durationNum > 0 {
+			stat.AverageDuration = sumDuration / durationNum
+		}
+
 		stat.SumDuration = sumDuration
 		stats = append(stats, stat)
 	}
