@@ -770,7 +770,7 @@ func (r *Session) RemovePlayer(userId int64) {
 	if ok {
 		r.asyncBroadcast(fmt.Sprintf(resource.TextPlayerLeftGameMsg, player.FormatFirstName()))
 		r.removePlayer(userId)
-		if r.AlivePlayersLen() == 0 {
+		if r.AlivePlayersLen() == 0 && r.getState() == stateKindFinished {
 			r.Stop()
 		}
 		r.passCh <- struct{}{}
@@ -832,6 +832,12 @@ func (r *Session) randWeightedBloops() resource.Bloops {
 	}
 
 	return result
+}
+
+func (r *Session) getState() stateKind {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+	return r.state
 }
 
 func (r *Session) nextRound() {
