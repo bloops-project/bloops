@@ -632,15 +632,9 @@ VoteLoop:
 		delete(r.msgCallback, messageId)
 	}
 
-	switch {
-	case r.activeVote.thumbUp == 0 && r.activeVote.thumbDown == 0, r.activeVote.thumbUp < r.activeVote.thumbDown:
-		// if players believe that an active player failed, they lose all points for the round
+	if r.activeVote.thumbUp < r.activeVote.thumbDown {
 		rate.Points = 0
 		rate.Completed = false
-	case r.activeVote.thumbUp == r.activeVote.thumbDown:
-		rate.Points = rate.Points / 2
-		rate.Completed = true
-	default:
 	}
 
 	return nil, false
