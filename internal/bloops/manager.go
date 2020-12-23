@@ -6,7 +6,7 @@ import (
 	"bloop/internal/bloops/resource"
 	"bloop/internal/logging"
 	statDb "bloop/internal/stat/database"
-	"bloop/internal/user/database"
+	userDb "bloop/internal/user/database"
 	"bloop/internal/user/model"
 	"context"
 	"errors"
@@ -22,7 +22,7 @@ import (
 
 var CommandNotFoundErr = fmt.Errorf("command not found")
 
-func NewManager(tg *tgbotapi.BotAPI, config *Config, userDb *database.DB, statDb *statDb.DB) *manager {
+func NewManager(tg *tgbotapi.BotAPI, config *Config, userDb *userDb.DB, statDb *statDb.DB) *manager {
 	return &manager{
 		tg:                   tg,
 		config:               config,
@@ -49,7 +49,7 @@ type manager struct {
 	playingSessions map[int64]*match.Session
 	// command callbacks
 	cmdCb  map[int64]func(string) error
-	userDb *database.DB
+	userDb *userDb.DB
 	statDb *statDb.DB
 	cancel func()
 }
@@ -437,6 +437,14 @@ func (m *manager) handleProfileCmd(u model.User, chatId int64) error {
 
 		u, err := m.userDb.FetchByUsername(username)
 		if err != nil {
+			if errors.Is(err, userDb.NotFoundErr) {
+				msg := tgbotapi.NewMessage(chatId, "Пользователь не найден")
+				msg.ParseMode = tgbotapi.ModeMarkdown
+				if _, err := m.tg.Send(msg); err != nil {
+					return fmt.Errorf("send msg: %v", err)
+				}
+				return nil
+			}
 			return fmt.Errorf("fetch by username: %v", err)
 		}
 		stat, err := m.statDb.FetchProfileStat(u.Id)
@@ -607,7 +615,7 @@ func (m *manager) recvUser(upd tgbotapi.Update) (model.User, error) {
 
 	u, err := m.userDb.Fetch(int64(tgUser.ID))
 	if err != nil {
-		if errors.Is(err, database.NotFoundErr) {
+		if errors.Is(err, userDb.NotFoundErr) {
 			newUser := model.User{
 				Id:           int64(tgUser.ID),
 				FirstName:    tgUser.FirstName,

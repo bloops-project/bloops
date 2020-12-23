@@ -74,9 +74,12 @@ func (db *DB) FetchByUsername(username string) (model.User, error) {
 				return nil
 			}
 		}
+		if user.Id == 0 {
+			return NotFoundErr
+		}
 		return nil
 	}); err != nil {
-		return user, fmt.Errorf("view transaction error: %v", err)
+		return user, fmt.Errorf("view transaction error: %w", err)
 	}
 	return user, nil
 }
