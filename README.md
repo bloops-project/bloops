@@ -15,7 +15,7 @@ What is blooopbot? This is a telegram bot created to organize offline games simi
 🎄🎄🎄 It's just fun, it's a little activity in the family for the holidays
 
 ## Location
-[bloop in Telegram](https://t.me/blooopbot)
+[bloops_bot in Telegram](https://t.me/bloops_bot)
 
 ## Development
 Shitty code, I know, but it was done quickly for a family celebration
