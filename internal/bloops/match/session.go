@@ -83,7 +83,7 @@ func NewSession(config Config) *Session {
 		timeout:     config.Timeout,
 		startCh:     make(chan struct{}, 1),
 		stopCh:      make(chan struct{}, 1),
-		passCh:      make(chan struct{}, 1),
+		passCh:      make(chan int64, 1),
 		statDb:      config.StatDb,
 		CreatedAt:   time.Now(),
 	}
@@ -110,7 +110,7 @@ type Session struct {
 	sndCh            chan tgbotapi.Chattable
 	startCh          chan struct{}
 	stopCh           chan struct{}
-	passCh           chan struct{}
+	passCh           chan int64
 	statDb           *statDb.DB
 	sema             sync.Once
 	state            stateKind
@@ -467,8 +467,10 @@ PlayerLoop:
 						continue PlayerLoop
 					case <-ctx.Done():
 						return nil
-					case <-r.passCh:
-						continue PlayerLoop
+					case userId := <-r.passCh:
+						if userId == player.UserId {
+							continue PlayerLoop
+						}
 					}
 				}
 			} else {
@@ -512,8 +514,10 @@ PlayerLoop:
 				continue PlayerLoop
 			case <-ctx.Done():
 				return nil
-			case <-r.passCh:
-				continue PlayerLoop
+			case userId := <-r.passCh:
+				if userId == player.UserId {
+					continue PlayerLoop
+				}
 			}
 		}
 
@@ -598,8 +602,10 @@ OuterLoop:
 		select {
 		case <-ctx.Done():
 			break OuterLoop
-		case <-r.passCh:
-			break OuterLoop
+		case userId := <-r.passCh:
+			if userId == player.UserId {
+				break OuterLoop
+			}
 		case <-r.stopCh:
 			break OuterLoop
 		case <-ticker.C:
@@ -797,7 +803,7 @@ func (r *Session) RemovePlayer(userId int64) {
 		if r.AlivePlayersLen() == 0 && r.getState() == stateKindFinished {
 			r.Stop()
 		}
-		r.passCh <- struct{}{}
+		r.passCh <- player.UserId
 	}
 }
 
