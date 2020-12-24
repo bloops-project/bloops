@@ -8,18 +8,19 @@ import (
 )
 
 type Config struct {
-	AuthorId   int64
-	RoundsNum  int
-	RoundTime  int
-	Categories []string
-	Letters    []string
-	Bloopses   []resource.Bloops
-	Vote       bool
-	Tg         *tgbotapi.BotAPI
-	Code       int64
-	DoneFn     func(session *Session) error
-	Timeout    time.Duration
-	StatDb     *statDb.DB
+	AuthorId   int64                        `json:"authorId"`
+	AuthorName string                       `json:"authorName"`
+	RoundsNum  int                          `json:"roundsNum"`
+	RoundTime  int                          `json:"roundTime"`
+	Categories []string                     `json:"categories"`
+	Letters    []string                     `json:"letters"`
+	Bloopses   []resource.Bloops            `json:"bloopses"`
+	Vote       bool                         `json:"vote"`
+	Code       int64                        `json:"code"`
+	Tg         *tgbotapi.BotAPI             `json:"-"`
+	DoneFn     func(session *Session) error `json:"-"`
+	Timeout    time.Duration                `json:"-"`
+	StatDb     *statDb.DB                   `json:"-"`
 }
 
 func (c Config) IsBloops() bool {

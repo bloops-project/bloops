@@ -1,6 +1,8 @@
 package resource
 
 import (
+	"bloop/internal/hashutil"
+	"fmt"
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -16,9 +18,12 @@ var (
 	ProfileButtonText = emoji.Alien.String() + " Профиль"
 
 	// builder inline button text
-	InlineNextText = "Далее"
-	InlinePrevText = "Назад"
-	InlineDoneText = emoji.ChequeredFlag.String() + " Завершить"
+	BuilderInlineNextText = "Далее"
+	BuilderInlineNextData = fmt.Sprintf("%s:%s", BuilderInlineNextText, hashutil.SerializedSha1FromTime())
+	BuilderInlinePrevText = "Назад"
+	BuilderInlinePrevData = fmt.Sprintf("%s:%s", BuilderInlinePrevText, hashutil.SerializedSha1FromTime())
+	BuilderInlineDoneText = emoji.ChequeredFlag.String() + " Завершить"
+	BuilderInlineDoneData = fmt.Sprintf("%s:%s", BuilderInlineDoneText, hashutil.SerializedSha1FromTime())
 )
 var (
 	// keyboard buttons

@@ -2,6 +2,7 @@ package builder
 
 import (
 	"bloop/internal/bloops/resource"
+	"fmt"
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"strconv"
@@ -56,7 +57,13 @@ func (bs *Session) renderRoundsTime() tgbotapi.InlineKeyboardMarkup {
 	markup := tgbotapi.NewInlineKeyboardMarkup()
 	row := tgbotapi.NewInlineKeyboardRow()
 	for _, n := range resource.RoundTimes {
-		row = append(row, tgbotapi.NewInlineKeyboardButtonData(strconv.Itoa(n), strconv.Itoa(n)))
+		row = append(
+			row,
+			tgbotapi.NewInlineKeyboardButtonData(
+				fmt.Sprintf("%s %d", emoji.Stopwatch.String(), n),
+				strconv.Itoa(n),
+			),
+		)
 	}
 	markup.InlineKeyboard = append(markup.InlineKeyboard, row)
 
@@ -121,13 +128,13 @@ func (bs *Session) menuInlineButtons(markup tgbotapi.InlineKeyboardMarkup) tgbot
 	row := tgbotapi.NewInlineKeyboardRow()
 
 	if !bs.state.isMin() {
-		row = append(row, tgbotapi.NewInlineKeyboardButtonData(resource.InlinePrevText, resource.InlinePrevText))
+		row = append(row, tgbotapi.NewInlineKeyboardButtonData(resource.BuilderInlinePrevText, resource.BuilderInlinePrevData))
 	}
 
 	if !bs.state.isMax() {
-		row = append(row, tgbotapi.NewInlineKeyboardButtonData(resource.InlineNextText, resource.InlineNextText))
+		row = append(row, tgbotapi.NewInlineKeyboardButtonData(resource.BuilderInlineNextText, resource.BuilderInlineNextData))
 	} else {
-		row = append(row, tgbotapi.NewInlineKeyboardButtonData(resource.InlineDoneText, resource.InlineDoneText))
+		row = append(row, tgbotapi.NewInlineKeyboardButtonData(resource.BuilderInlineDoneText, resource.BuilderInlineDoneData))
 	}
 
 	markup.InlineKeyboard = append(markup.InlineKeyboard, row)

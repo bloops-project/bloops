@@ -133,10 +133,10 @@ func (r *Session) sendLetterMsg(player *Player) error {
 	for i := 0; i < generateLetterTimes; i++ {
 		for buf.String() == sentMsg {
 			buf.Reset()
-			idx := fastrand.Uint32n(uint32(len(r.config.Letters)))
+			idx := fastrand.Uint32n(uint32(len(r.Config.Letters)))
 			buf.WriteString(resource.TextStartLetterMsg)
-			buf.WriteString(r.config.Letters[idx])
-			sentLetter = r.config.Letters[idx]
+			buf.WriteString(r.Config.Letters[idx])
+			sentLetter = r.Config.Letters[idx]
 		}
 
 		sndCh <- buf.String()

@@ -2,11 +2,13 @@ package match
 
 import (
 	"bloop/internal/bloops/resource"
+	"bloop/internal/byteutil"
 	"bloop/internal/logging"
 	statDb "bloop/internal/stat/database"
 	statModel "bloop/internal/stat/model"
 	"bloop/internal/util"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -46,11 +48,11 @@ func newVote() *vote {
 }
 
 type Rate struct {
-	Duration   time.Duration
-	Points     int
-	Completed  bool
-	Bloops     bool
-	BloopsName string
+	Duration   time.Duration `json:"duration"`
+	Points     int           `json:"points"`
+	Completed  bool          `json:"completed"`
+	Bloops     bool          `json:"bloops"`
+	BloopsName string        `json:"bloopsName"`
 }
 
 type PlayerScore struct {
@@ -70,8 +72,7 @@ type vote struct {
 
 func NewSession(config Config) *Session {
 	return &Session{
-		config:      config,
-		AuthorId:    config.AuthorId,
+		Config:      config,
 		tg:          config.Tg,
 		Code:        config.Code,
 		stateCh:     make(chan stateKind, 1),
@@ -91,11 +92,12 @@ func NewSession(config Config) *Session {
 type Session struct {
 	mtx sync.RWMutex
 
-	config           Config
-	Players          []*Player
-	CreatedAt        time.Time
-	AuthorId         int64
-	Code             int64
+	Config Config
+
+	Code      int64
+	Players   []*Player
+	CreatedAt time.Time
+
 	tg               *tgbotapi.BotAPI
 	stateCh          chan stateKind
 	msgCallback      map[int]queryCallbackFn
@@ -122,12 +124,33 @@ func (r *Session) Stop() {
 func (r *Session) Run(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	r.cancel = cancel
+	logger := logging.FromContext(ctx)
 	r.sema.Do(func() {
 		go r.loop(ctx)
 		for i := 0; i < runtime.NumCPU(); i++ {
 			go r.sendingPool(ctx)
 		}
 	})
+
+	logger.Infof("The game session created, code: %d, author: %s", r.Config.Code, r.Config.AuthorName)
+}
+
+func (r *Session) logSerialize(ctx context.Context) {
+	logger := logging.FromContext(ctx)
+	ser := SerializedSession{
+		Config:    r.Config,
+		Players:   make([]*Player, len(r.Players)),
+		CreatedAt: r.CreatedAt,
+	}
+
+	copy(ser.Players, r.Players)
+	bytes, err := json.Marshal(ser)
+	if err != nil {
+		logger.Errorf("logSerialize.Marshal: %v", err)
+		return
+	}
+
+	logger.Info(byteutil.BytesToString(bytes))
 }
 
 func (r *Session) Execute(userId int64, upd tgbotapi.Update) error {
@@ -162,10 +185,10 @@ func (r *Session) persistStat() error {
 			}
 		}
 
-		stat.Categories = make([]string, len(r.config.Categories))
-		copy(stat.Categories, r.config.Categories)
+		stat.Categories = make([]string, len(r.Config.Categories))
+		copy(stat.Categories, r.Config.Categories)
 
-		stat.RoundsNum = r.config.RoundsNum
+		stat.RoundsNum = r.Config.RoundsNum
 		stat.PlayersNum = len(r.Players)
 
 		var bestDuration, worstDuration, sumDuration, durationNum time.Duration = 2 << 31, 0, 0, 0
@@ -225,7 +248,7 @@ func (r *Session) persistStat() error {
 }
 
 func (r *Session) isPossibleStart(userId int64, cmd string) bool {
-	return r.state == stateKindWaiting && cmd == resource.StartButtonText && r.AuthorId == userId
+	return r.state == stateKindWaiting && cmd == resource.StartButtonText && r.Config.AuthorId == userId
 }
 
 func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) error {
@@ -234,6 +257,7 @@ func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) err
 			r.asyncBroadcast(resource.TextValidationRequiresMoreOnePlayerMsg, userId)
 			return nil
 		}
+
 		if player, ok := r.findPlayer(userId); ok {
 			msg := tgbotapi.NewMessage(player.ChatId, "Ты запустил игру!")
 			msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
@@ -296,6 +320,7 @@ func (r *Session) loop(ctx context.Context) {
 			if err := r.doneFn(r); err != nil {
 				logger.Errorf("done function: %v", err)
 			}
+			logger.Infof("The game session closed, author: %s", r.Config.AuthorName)
 			return
 		case state := <-r.stateCh:
 			switch state {
@@ -305,9 +330,13 @@ func (r *Session) loop(ctx context.Context) {
 				if err := r.persistStat(); err != nil {
 					logger.Errorf("persist stat: %v", err)
 				}
+				logger.Infof("The results are saved to the db, author: %s", r.Config.AuthorName)
+				r.logSerialize(ctx)
+				logger.Infof("The game session is complete, author: %s", r.Config.AuthorName)
 			case stateKindProcessing:
+				logger.Infof("Round is complete, processing results, author: %s", r.Config.AuthorName)
 				r.changeState(stateKindProcessing)
-				if r.config.RoundsNum == r.currRoundIdx+1 {
+				if r.Config.RoundsNum == r.currRoundIdx+1 {
 					r.stateCh <- stateKindFinished
 					break
 				}
@@ -322,6 +351,7 @@ func (r *Session) loop(ctx context.Context) {
 				r.nextRound()
 				r.stateCh <- stateKindPlaying
 			case stateKindPlaying:
+				logger.Infof("The game changed its state to playing, author: %s", r.Config.AuthorName)
 				r.changeState(stateKindPlaying)
 				if err := r.playing(ctx); err != nil {
 					logger.Error(fmt.Errorf("playing: %v", err))
@@ -373,7 +403,7 @@ PlayerLoop:
 
 		rate := &Rate{}
 
-		r.currRoundSeconds = r.config.RoundTime
+		r.currRoundSeconds = r.Config.RoundTime
 		r.challengePoints = 0
 
 		// send "next player" asyncBroadcast message
@@ -382,7 +412,7 @@ PlayerLoop:
 
 		util.Sleep(2 * time.Second)
 
-		if r.config.IsBloops() {
+		if r.Config.IsBloops() {
 			msg := tgbotapi.NewMessage(player.ChatId, "Проверяем, выпадет ли блюпс?")
 			if _, err := r.tg.Send(msg); err != nil {
 				return fmt.Errorf("send msg: %v", err)
@@ -402,7 +432,7 @@ PlayerLoop:
 
 				nextBloops := r.randWeightedBloops()
 				r.challengePoints = nextBloops.Points
-				r.currRoundSeconds = r.config.RoundTime + nextBloops.Seconds
+				r.currRoundSeconds = r.Config.RoundTime + nextBloops.Seconds
 				bloops := &nextBloops
 				rate.BloopsName = bloops.Name
 
@@ -516,7 +546,7 @@ PlayerLoop:
 		rate.Completed = secs > 0
 
 		// vote features
-		if r.config.Vote {
+		if r.Config.Vote {
 			err, done := r.votes(ctx, rate)
 			if done {
 				return fmt.Errorf("votes: %v", err)
@@ -808,7 +838,7 @@ func (r *Session) randWeightedBloops() resource.Bloops {
 	var mn, mx uint32
 
 	for mn == mx {
-		p1, p2 := fastrand.Uint32n(uint32(len(r.config.Bloopses))), fastrand.Uint32n(uint32(len(r.config.Bloopses)))
+		p1, p2 := fastrand.Uint32n(uint32(len(r.Config.Bloopses))), fastrand.Uint32n(uint32(len(r.Config.Bloopses)))
 		if p1 > p2 {
 			mx, mn = p1, p2
 		} else {
@@ -816,7 +846,7 @@ func (r *Session) randWeightedBloops() resource.Bloops {
 		}
 	}
 
-	for _, challenge := range r.config.Bloopses[mn:mx] {
+	for _, challenge := range r.Config.Bloopses[mn:mx] {
 		rndNum := float64(fastrand.Uint32n(challengeMaxWeight)) / challengeMaxWeight
 		rnd := math.Pow(rndNum, 1/float64(challenge.Weight))
 		if rnd > max {

@@ -65,7 +65,7 @@ func (r *Session) renderStartMsg() string {
 	buf.WriteString("Нужно назвать все слова из списка категорий на выпавшую букву\n\n")
 	buf.WriteString(emoji.Pen.String())
 	buf.WriteString(" ")
-	buf.WriteString(strconv.Itoa(len(r.config.Categories)))
+	buf.WriteString(strconv.Itoa(len(r.Config.Categories)))
 	buf.WriteString(" слов\n")
 	buf.WriteString(emoji.Stopwatch.String())
 	buf.WriteString(" ")
@@ -139,7 +139,7 @@ func (r *Session) renderScores() string {
 		buf.WriteString(" очков, ")
 		buf.WriteString(strconv.Itoa(len(cell.Player.Rates)))
 		buf.WriteString("/")
-		buf.WriteString(strconv.Itoa(r.config.RoundsNum))
+		buf.WriteString(strconv.Itoa(r.Config.RoundsNum))
 		buf.WriteString("\n")
 	}
 
@@ -153,11 +153,28 @@ func (r *Session) renderCategories() string {
 		strpool.Put(buf)
 	}()
 
-	for i, category := range r.config.Categories {
+	for i, category := range r.Config.Categories {
 		buf.WriteString(strconv.Itoa(i + 1))
 		buf.WriteString(". ")
 		buf.WriteString(category)
 		buf.WriteString("\n")
+	}
+
+	return buf.String()
+}
+
+func (r *Session) renderPlayers() string {
+	buf := strpool.Get()
+	defer func() {
+		buf.Reset()
+		strpool.Put(buf)
+	}()
+
+	for i, player := range r.Players {
+		buf.WriteString(player.FormatFirstName())
+		if i < len(r.Players)-1 {
+			buf.WriteString(",")
+		}
 	}
 
 	return buf.String()

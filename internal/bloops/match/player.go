@@ -28,10 +28,10 @@ func NewPlayer(chatId int64, user userModel.User, offline bool) *Player {
 type Player struct {
 	User    userModel.User
 	State   PlayerStateKind
-	Offline bool
-	ChatId  int64
+	Offline bool  `json:"offline"`
+	ChatId  int64 `json:"chat_id"`
 	UserId  int64
-	Rates   []*Rate
+	Rates   []*Rate `json:"rates"`
 }
 
 func (p *Player) IsPlaying() bool {
@@ -46,7 +46,7 @@ func (p *Player) FormatFirstName() string {
 	}()
 
 	buf.WriteString(p.User.FirstName)
-	if p.User.Stars > 0 {
+	if !p.Offline && p.User.Stars > 0 {
 		buf.WriteString(emoji.Star.String())
 		buf.WriteString(" (")
 		buf.WriteString(strconv.Itoa(p.User.Stars))

@@ -5,14 +5,14 @@ import (
 	"sync"
 )
 
-var strPool = sync.Pool{
+var pool = sync.Pool{
 	New: func() interface{} {
 		return &strings.Builder{}
 	},
 }
 
 func Get() (b *strings.Builder) {
-	ifc := strPool.Get()
+	ifc := pool.Get()
 	if ifc != nil {
 		b = ifc.(*strings.Builder)
 	}
@@ -20,5 +20,5 @@ func Get() (b *strings.Builder) {
 }
 
 func Put(b *strings.Builder) {
-	strPool.Put(b)
+	pool.Put(b)
 }

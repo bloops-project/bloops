@@ -6,7 +6,7 @@ import (
 )
 
 type Config struct {
-	Debug            bool          `envconfig:"BLOOP_DEBUG" default:"true"`
+	Debug            bool          `envconfig:"BLOOP_DEBUG" default:"false"`
 	CacheItems       int           `envconfig:"BLOOP_CACHE_USERS_NUM" default:"1024"`
 	Token            string        `envconfig:"BLOOP_TOKEN"`
 	BuildingTimeout  time.Duration `envconfig:"BLOOP_BUILDING_TIMEOUT" default:"60m"`

@@ -149,6 +149,13 @@ func (m *manager) cleaning(ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
+type HandleBtnFn = func()
+
+//func (m *manager) handleControlCb(pattern string, )  {
+//	http.NewServeMux().
+//
+//}
+
 func (m *manager) handleCommand(u model.User, upd tgbotapi.Update) error {
 	switch upd.Message.Text {
 	case resource.CmdStart:
@@ -176,7 +183,7 @@ func (m *manager) handleCommand(u model.User, upd tgbotapi.Update) error {
 			return fmt.Errorf("handle join button: %v", err)
 		}
 	case resource.LeaveButtonText:
-		if err := m.handleBreakButton(u, upd.Message.Chat.ID); err != nil {
+		if err := m.handleButtonExit(u, upd.Message.Chat.ID); err != nil {
 			return fmt.Errorf("handle leave button: %v", err)
 		}
 	case resource.RuleButtonText:
@@ -276,6 +283,7 @@ func (m *manager) buildGameConfig(session *builder.Session, code int64) match.Co
 		Tg:         m.tg,
 		DoneFn:     m.matchDoneFn,
 		AuthorId:   session.AuthorId,
+		AuthorName: session.AuthorName,
 		RoundsNum:  session.RoundsNum,
 		RoundTime:  session.RoundTime,
 		Bloopses:   []resource.Bloops{},
@@ -370,6 +378,7 @@ func (m *manager) handleCreateButton(u model.User, chatId int64) error {
 		m.tg,
 		chatId,
 		u.Id,
+		u.Username,
 		m.builderDoneFn,
 		m.config.BuildingTimeout,
 	)
@@ -387,7 +396,7 @@ func (m *manager) handleCreateButton(u model.User, chatId int64) error {
 	return nil
 }
 
-func (m *manager) handleBreakButton(u model.User, chatId int64) error {
+func (m *manager) handleButtonExit(u model.User, chatId int64) error {
 	if session, ok := m.userPlayingSession(u.Id); ok {
 		session.RemovePlayer(u.Id)
 	}
@@ -431,22 +440,22 @@ func (m *manager) handleProfileCmd(u model.User, chatId int64) error {
 			delete(m.cmdCb, u.Id)
 		}()
 
-		if strings.Contains(username, "@") {
-			username = strings.TrimPrefix(username, "@")
-		}
+		username = strings.TrimPrefix(username, "@")
 
 		u, err := m.userDb.FetchByUsername(username)
 		if err != nil {
 			if errors.Is(err, userDb.NotFoundErr) {
-				msg := tgbotapi.NewMessage(chatId, "Пользователь не найден")
+				msg := tgbotapi.NewMessage(chatId, resource.TextProfileCmdUserNotFound)
 				msg.ParseMode = tgbotapi.ModeMarkdown
 				if _, err := m.tg.Send(msg); err != nil {
 					return fmt.Errorf("send msg: %v", err)
 				}
 				return nil
 			}
+
 			return fmt.Errorf("fetch by username: %v", err)
 		}
+
 		stat, err := m.statDb.FetchProfileStat(u.Id)
 		if err != nil {
 			return fmt.Errorf("fetch profile stat: %v", err)
@@ -522,7 +531,7 @@ func (m *manager) handleJoinButton(u model.User, chatId int64) error {
 			greetingText := resource.TextJoinedGameMsg
 
 			row := tgbotapi.NewKeyboardButtonRow()
-			if session.AuthorId == u.Id {
+			if session.Config.AuthorId == u.Id {
 				greetingText += resource.TextAuthorGreetingMsg
 				row = append(row, resource.StartButton)
 			}

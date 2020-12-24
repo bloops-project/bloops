@@ -4,19 +4,21 @@ import "github.com/enescakir/emoji"
 
 // manage text messages
 var (
-	TextAuthorGreetingMsg = "\n\nТак ты являешься ведущим, тебе нужно нажать на кнопку " +
-		StartButtonText + ", когда все игроки присоединятся"
+	TextAuthorGreetingMsg = "\n\nТы - ведущий игрок " + emoji.FlexedBiceps.String() + "\n\n" +
+		"Когда все игроки присоединятся тебе нужно нажать\n" + emoji.Rocket.String() + " *Начать* " + " для старта"
 	TextJoinedGameMsg                      = "Ты присоединился к игре! "
 	TextGameRoomNotFoundMsg                = "Игровая комната не найдена"
 	TextSendJoinedCodeMsg                  = "Отправь код подключения к игре"
 	TextLeavingSessionsMsg                 = "Ты покинул все игровые сеансы"
 	TextSendOfflinePlayerUsernameMsg       = "Отправь имя оффлайн пользователя"
 	TextSendProfileMsg                     = "Отправь @username пользователя"
+	TextProfileCmdUserNotFound             = "Пользователь не найден"
 	TextGameRoomNotFound                   = "Тебе нужно присоединиться к игре, чтобы добавлять оффлайн игроков"
 	TextOfflinePlayerAdded                 = "Оффлайн игрок добавлен. Все сообщения будут приходить тебе"
 	TextCreationGameCompletedSuccessfulMsg = emoji.Unicorn.String() + " Игровая комната создана.\n\nДля входа нужно " +
-		"нажать кнопку *Присоединится к игре* и ввести этот код.\n\n" +
-		"Отправь его своим друзьям, чтобы они смогли присоединиться " + emoji.VideoGame.String()
+		"нажать кнопку " + emoji.VideoGame.String() + " *Присоединится к игре* и ввести этот код.\n\n" +
+		emoji.PartyingFace.String() + " Отправь код тем, с кем собираешься играть"
+
 	TextSettingsMsg = emoji.Gear.String() + " Настраиваем параметры игры"
 
 	TextGreetingMsg = emoji.ChristmasTree.String() + emoji.ChristmasTree.String() + emoji.ChristmasTree.String() + "Привет, %s\n\n" +
@@ -38,9 +40,9 @@ var (
 		"назвать по одному слову из нескольких категорий, начинающихся на определенную букву\n" +
 		"По итогам нескольких раундов побеждают игроки с наибольшим количеством очков" + emoji.Trophy.String() + "\n\n" +
 		emoji.CrossMark.String() + " *Ограничения* - от 2х человек, " + `@bloops\_bot ` + emoji.Robot.String() + " предназначен для ведения игр в оффлайне\n\n" +
-		emoji.Joystick.String() + " *Что делать?* - для начала ведущий игрок создаёт игру, для этого ему нужно нажать " +
-		"*Создать игру* и выполнить действия по настройке. Ему будет выслан код, который он сообщает участникам. Затем игроки " +
-		"присоединяются к игре и ведуший нажимает кнопку *Начать*" + emoji.Rocket.String() + "\n\n" +
+		emoji.Joystick.String() + " *Что делать?* - \nдля начала ведущий игрок должен " + emoji.Fire.String() + " *Создать игру* и выполнить действия по настройке." +
+		" Ему будет выслан код, который он сообщает участникам. Затем игроки " +
+		"присоединяются к игре и ведуший нажимает кнопку \n" + emoji.Rocket.String() + " *Начать*\n\n" +
 		emoji.Loudspeaker.String() + " *Голосование* - после каждого раунда игроки определяют справился ли участник с заданием\n\n" +
 		emoji.GemStone.String() + " *Блюпсы* - это дополнительные задания, " +
 		"которые нужно выполнять параллельно с основным процессом игры, они выпадают игроку с некоторым шансом \n\n" +

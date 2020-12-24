@@ -17,34 +17,35 @@ const (
 	defaultRoundTime = 30
 )
 
-type CommandKind uint8
-
-const (
-	CommandKindPrevAction CommandKind = iota + 1
-	CommandKindNextAction
-	CommandKindDoneAction
-)
-
 type QueryCallbackFn func(query *tgbotapi.CallbackQuery) error
 
 type stateKind uint8
 
 const (
 	stateKindCategories stateKind = iota + 1
-	stateKindRounds
+	stateKindRoundsNum
 	stateKindRoundTime
 	stateKindLetters
-	stateBloops
+	stateKindBloops
 	stateKindVote
 	stateKindDone
 )
 
-var stages = []stateKind{stateKindCategories, stateKindRounds, stateKindRoundTime, stateKindLetters, stateBloops, stateKindVote, stateKindDone}
+var stages = []stateKind{
+	stateKindCategories,
+	stateKindRoundsNum,
+	stateKindRoundTime,
+	stateKindLetters,
+	stateKindBloops,
+	stateKindVote,
+	stateKindDone,
+}
 
 func NewSession(
 	tg *tgbotapi.BotAPI,
 	chatId int64,
 	authorId int64,
+	authorName string,
 	doneFn func(session *Session) error,
 	timeout time.Duration,
 ) (*Session, error) {
@@ -55,11 +56,13 @@ func NewSession(
 		messageCh:       make(chan struct{}, 1),
 		ChatId:          chatId,
 		AuthorId:        authorId,
+		AuthorName:      authorName,
 		RoundsNum:       defaultRoundsNum,
 		RoundTime:       defaultRoundTime,
 		timeout:         timeout,
 		doneFn:          doneFn,
 		controlHandlers: map[string]QueryCallbackFn{},
+		actionHandlers:  map[stateKind]QueryCallbackFn{},
 		CreatedAt:       time.Now(),
 	}
 
@@ -69,17 +72,16 @@ func NewSession(
 	s.Letters = make([]resource.Letter, len(resource.Letters))
 	copy(s.Letters, resource.Letters)
 
-	if err := s.bindControlCommand(resource.InlineNextText, CommandKindNextAction); err != nil {
-		return nil, fmt.Errorf("bind control command: %v", err)
-	}
+	s.handleControlCb(resource.BuilderInlineNextData, s.clickOnNext)
+	s.handleControlCb(resource.BuilderInlinePrevData, s.clickOnPrev)
+	s.handleControlCb(resource.BuilderInlineDoneData, s.clickOnDone)
 
-	if err := s.bindControlCommand(resource.InlinePrevText, CommandKindPrevAction); err != nil {
-		return nil, fmt.Errorf("bind control command: %v", err)
-	}
-
-	if err := s.bindControlCommand(resource.InlineDoneText, CommandKindDoneAction); err != nil {
-		return nil, fmt.Errorf("bind control command: %v", err)
-	}
+	s.handleActionCb(stateKindCategories, s.clickOnCategories)
+	s.handleActionCb(stateKindRoundTime, s.clickOnRoundTime)
+	s.handleActionCb(stateKindRoundsNum, s.clickOnRoundsNum)
+	s.handleActionCb(stateKindLetters, s.clickOnLetters)
+	s.handleActionCb(stateKindBloops, s.clickOnBloops)
+	s.handleActionCb(stateKindVote, s.clickOnVote)
 
 	return s, nil
 }
@@ -88,6 +90,7 @@ type Session struct {
 	mtx sync.RWMutex
 
 	AuthorId   int64
+	AuthorName string
 	Categories []resource.Category
 	Letters    []resource.Letter
 	RoundsNum  int
@@ -106,6 +109,7 @@ type Session struct {
 
 	timeout         time.Duration
 	controlHandlers map[string]QueryCallbackFn
+	actionHandlers  map[stateKind]QueryCallbackFn
 	cancel          func()
 	doneFn          func(session *Session) error
 }
@@ -113,10 +117,13 @@ type Session struct {
 func (bs *Session) Run(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, bs.timeout)
 	bs.cancel = cancel
+	logger := logging.FromContext(ctx)
 	bs.sema.Do(func() {
 		go bs.loop(ctx)
 		bs.messageCh <- struct{}{}
 	})
+
+	logger.Infof("Building session has started, author: %s", bs.AuthorName)
 }
 
 func (bs *Session) Stop() {
@@ -158,6 +165,24 @@ func (bs *Session) executeMessageQuery(query *tgbotapi.Message) error {
 	return nil
 }
 
+func (bs *Session) handleControlCb(command string, fn QueryCallbackFn) {
+	bs.controlHandlers[command] = fn
+}
+
+func (bs *Session) handleActionCb(kind stateKind, fn QueryCallbackFn) {
+	bs.actionHandlers[kind] = fn
+}
+
+func (bs *Session) isControlCmd(queryData string) bool {
+	for cmd := range bs.controlHandlers {
+		if cmd == queryData {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (bs *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 	if query.Message.MessageID != bs.messageId {
 		return fmt.Errorf("callback with message id %d not found", query.Message.MessageID)
@@ -166,37 +191,20 @@ func (bs *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 	if bs.isControlCmd(query.Data) {
 		fn := bs.controlHandlers[query.Data]
 		if err := fn(query); err != nil {
-			return fmt.Errorf("fn : %v", err)
+			return fmt.Errorf("execute control handler: %v", err)
 		}
 
 		return nil
 	}
 
-	switch bs.state.curr() {
-	case stateKindCategories:
-		if err := bs.clickOnCategories(query); err != nil {
-			return fmt.Errorf("click on categories: %v", err)
-		}
-	case stateKindRounds:
-		if err := bs.clickOnRoundsNum(query); err != nil {
-			return fmt.Errorf("click on rounds num: %v", err)
-		}
-	case stateKindRoundTime:
-		if err := bs.clickOnRoundTime(query); err != nil {
-			return fmt.Errorf("click on round time: %v", err)
-		}
-	case stateKindLetters:
-		if err := bs.clickOnLetter(query); err != nil {
-			return fmt.Errorf("click on letter: %v", err)
-		}
-	case stateBloops:
-		if err := bs.clickOnBloops(query); err != nil {
-			return fmt.Errorf("click on challenges: %v", err)
-		}
-	case stateKindVote:
-		if err := bs.clickOnVote(query); err != nil {
-			return fmt.Errorf("click on vote: %v", err)
-		}
+	kind := bs.state.curr()
+	fn, ok := bs.actionHandlers[kind]
+	if !ok {
+		return fmt.Errorf("action handler not found")
+	}
+
+	if err := fn(query); err != nil {
+		return fmt.Errorf("action handle: %v", err)
 	}
 
 	return nil
@@ -210,7 +218,7 @@ func (bs *Session) loop(ctx context.Context) {
 			if err := bs.doneFn(bs); err != nil {
 				logger.Errorf("done function: %v", err)
 			}
-
+			logger.Infof("Building session is complete, author: %s", bs.AuthorName)
 			return
 		case <-bs.messageCh:
 			switch bs.state.curr() {
@@ -222,7 +230,7 @@ func (bs *Session) loop(ctx context.Context) {
 					logger.Errorf("send categories: %v", err)
 				}
 				bs.messageId = output.MessageID
-			case stateKindRounds:
+			case stateKindRoundsNum:
 				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextChooseRoundsNum)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderRoundsNum())
 				output, err := bs.tg.Send(msg)
@@ -246,7 +254,7 @@ func (bs *Session) loop(ctx context.Context) {
 					logger.Errorf("send letters: %v", err)
 				}
 				bs.messageId = output.MessageID
-			case stateBloops:
+			case stateKindBloops:
 				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextBloopsAllowed)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderInlineBloops())
 				output, err := bs.tg.Send(msg)
@@ -277,7 +285,7 @@ func (bs *Session) loop(ctx context.Context) {
 
 func (bs *Session) clickOnPrev(query *tgbotapi.CallbackQuery) error {
 	bs.state.prev()
-	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.InlinePrevText)); err != nil {
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.BuilderInlinePrevText)); err != nil {
 		return fmt.Errorf("send answer msg: %v", err)
 	}
 	bs.messageCh <- struct{}{}
@@ -287,7 +295,7 @@ func (bs *Session) clickOnPrev(query *tgbotapi.CallbackQuery) error {
 
 func (bs *Session) clickOnNext(query *tgbotapi.CallbackQuery) error {
 	bs.state.next()
-	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.InlineNextText)); err != nil {
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.BuilderInlineNextText)); err != nil {
 		return fmt.Errorf("send answer msg: %v", err)
 	}
 	bs.messageCh <- struct{}{}
@@ -296,7 +304,7 @@ func (bs *Session) clickOnNext(query *tgbotapi.CallbackQuery) error {
 }
 
 func (bs *Session) clickOnDone(query *tgbotapi.CallbackQuery) error {
-	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.InlineDoneText)); err != nil {
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.BuilderInlineDoneText)); err != nil {
 		return fmt.Errorf("send answer msg: %v", err)
 	}
 
@@ -321,36 +329,6 @@ func (bs *Session) clickOnDone(query *tgbotapi.CallbackQuery) error {
 	bs.cancel()
 
 	return nil
-}
-
-func (bs *Session) bindControlCommand(command string, kind CommandKind) error {
-	var err error
-	switch kind {
-	case CommandKindDoneAction:
-		bs.Handle(command, bs.clickOnDone)
-	case CommandKindNextAction:
-		bs.Handle(command, bs.clickOnNext)
-	case CommandKindPrevAction:
-		bs.Handle(command, bs.clickOnPrev)
-	default:
-		err = fmt.Errorf("control command kind not found")
-	}
-
-	return err
-}
-
-func (bs *Session) Handle(command string, fn QueryCallbackFn) {
-	bs.controlHandlers[command] = fn
-}
-
-func (bs *Session) isControlCmd(command string) bool {
-	for cmd := range bs.controlHandlers {
-		if cmd == command {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (bs *Session) clickOnCategories(query *tgbotapi.CallbackQuery) error {
@@ -412,7 +390,7 @@ func (bs *Session) clickOnRoundsNum(query *tgbotapi.CallbackQuery) error {
 	return nil
 }
 
-func (bs *Session) clickOnLetter(query *tgbotapi.CallbackQuery) error {
+func (bs *Session) clickOnLetters(query *tgbotapi.CallbackQuery) error {
 	var answer string
 	for i, letter := range bs.Letters {
 		if query.Data == letter.Text {
@@ -443,7 +421,7 @@ func (bs *Session) clickOnBloops(query *tgbotapi.CallbackQuery) error {
 		return fmt.Errorf("strconv: %v", err)
 	}
 
-	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.InlineNextText)); err != nil {
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.BuilderInlineNextText)); err != nil {
 		return fmt.Errorf("send answer msg: %v", err)
 	}
 
@@ -460,7 +438,7 @@ func (bs *Session) clickOnVote(query *tgbotapi.CallbackQuery) error {
 		return fmt.Errorf("strconv: %v", err)
 	}
 
-	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.InlineNextText)); err != nil {
+	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.BuilderInlineNextText)); err != nil {
 		return fmt.Errorf("send answer msg: %v", err)
 	}
 
