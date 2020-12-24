@@ -1,4 +1,4 @@
-# Bloosbot - telegram bot
+# Bloopsbot - telegram bot for offline quizzes.
 ```
 ___.   .__                                 ___.           __   
 \_ |__ |  |   ____   ____ ______  ______   \_ |__   _____/  |_ 
@@ -7,27 +7,52 @@ ___.   .__                                 ___.           __
  |___  /____/\____/ \____/|   __/____  >____|___  /\____/|__|  
      \/                   |__|       \/_____/   \/                                                                          
 ```
-## What is blooopbot?
-What is blooopbot? This is a telegram bot created to organize offline games similar to tiktok quizzes. bloop has no localization and is only in Russian.
+## What is bloopsbot?
+What is bloopsbot? This is a telegram bot created to organize offline games similar to tiktok quizzes. bloop has no localization and is only in Russian.
 
 ## Why?
-🎄🎄🎄 It's just fun, it's a little activity in the family for the holidays
+🎄🎄🎄 The project was created for playing with the family during the holidays. This is just fun.
+
+## Features
+* 🕹️ Offline format, well suited for activities with friends
+* 🎲 Quiz games - in 30 seconds, you need to name one word from several categories starting with a certain letter
+* 💎 Bloops - you can add additional tasks that diversify the process
+* 👽 Players have profiles, you can see your statistics
+* 👨‍💻 You can use a CLI or deploy from a container
+
+## Localization
+no, only in Russian :)
 
 ## Location
+Telegram
 [bloops_bot in Telegram](https://t.me/bloops_bot)
 
 ## Development
 Shitty code, I know, but it was done quickly for a family celebration
 
-## Install
+## 🚀 Quick start
 For CLI version make 
+1. *Clone repo*
 ```
-git clone https://github.com/robotomize/bloop.git
-cd bloop
-go build cmd/bloop-cli
-./bloop-cli
+$ git clone https://github.com/robotomize/bloop.git
 ```
-or from docker
+2. *Build CLI application*
 ```
-docker build -e BLOOP_TOKEN="BOT_TOKEN" -it . 
+$ cd bloop
+$ go build cmd/bloop-cli
 ```
+3. *Register your bot token* [bot father](https://t.me/BotFather)
+```
+$ ./bloop-cli
+```
+
+To build a docker image run the following commands
+```
+$ docker build -e BLOOP_TOKEN="BOT_TOKEN" -it . 
+```
+Or you can build the service by adding the bot token to the environment variables
+```
+$ go build cmd/bloop-srv
+```
+## Contact
+tg: [@robotomize](https://t.me/robotomize)
