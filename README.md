@@ -28,7 +28,7 @@ Telegram
 [bloops_bot in Telegram](https://t.me/bloops_bot)
 
 ## Development
-Shitty code, I know, but it was done quickly for a family celebration
+This is shitty code, I know there is no testing in it, but this is my little hackathon to get it done quickly for the holidays.
 
 ## 🚀 Quick start
 For CLI version make 
