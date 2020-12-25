@@ -7,11 +7,12 @@ ___.   .__                                 ___.           __
  |___  /____/\____/ \____/|   __/____  >____|___  /\____/|__|  
      \/                   |__|       \/_____/   \/                                                                          
 ```
-## Location
-You can use it here -> [bloopsbot in Telegram](https://t.me/bloops_bot)
 
 ## What is bloopsbot?
-What is bloopsbot? This is a telegram bot created to organize offline games similar to tiktok quizzes. bloop has no localization and is only in Russian.
+What is bloopsbot? 🤖 This is a telegram bot created to organize offline games similar to tiktok quizzes. bloop has no localization and is only in Russian.
+
+## Location
+You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)
 
 ## Why?
 🎄🎄🎄 The project was created for playing with the family during the holidays. This is just fun.
@@ -23,8 +24,8 @@ What is bloopsbot? This is a telegram bot created to organize offline games simi
 * 👽 Players have profiles, you can see your statistics
 * 👨‍💻 You can use a CLI or deploy from a container
 
-## Localization
-no, only in Russian :)
+## Language
+Only in Russian 😔
 
 ## Development
 This is shitty code, I know there is no testing in it, but this is my little hackathon to get it done quickly for the holidays.
