@@ -24,6 +24,9 @@ You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)
 * 👽 Players have profiles, you can see your statistics
 * 👨‍💻 You can use a CLI or deploy from a container
 
+## Play
+🚀 [PLAY](https://t.me/bloops_bot)
+
 ## Language
 Only in Russian 😔
 
