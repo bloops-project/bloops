@@ -182,7 +182,7 @@ func (r *Session) renderSetting() string {
 	buf.WriteString(strconv.Itoa(r.Config.RoundTime))
 	buf.WriteString(" сек*")
 	buf.WriteString("\n\n")
-	buf.WriteString("Категории")
+	buf.WriteString("Категории\n")
 	buf.WriteString(r.renderCategories())
 
 	return buf.String()
