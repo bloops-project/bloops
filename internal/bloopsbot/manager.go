@@ -618,7 +618,7 @@ func (m *manager) handleJoinButton(u userModel.User, chatId int64) error {
 				row = append(row, resource.StartButton)
 			}
 
-			row = append(row, resource.LeaveButton)
+			row = append(row, resource.LeaveButton, resource.GameSettingButton)
 			msg := tgbotapi.NewMessage(chatId, greetingText)
 			msg.ParseMode = tgbotapi.ModeMarkdown
 			msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(

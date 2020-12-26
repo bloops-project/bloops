@@ -9,13 +9,14 @@ import (
 
 var (
 	// common menu button text
-	CreateButtonText  = emoji.Fire.String() + " Создать игру"
-	LeaveButtonText   = emoji.ChequeredFlag.String() + " Выйти"
-	StartButtonText   = emoji.Rocket.String() + " Начать"
-	JoinButtonText    = emoji.VideoGame.String() + " Присоединиться к игре"
-	RatingButtonText  = emoji.Star.String() + " Таблица лидеров"
-	RuleButtonText    = "Правила"
-	ProfileButtonText = emoji.Alien.String() + " Профиль"
+	CreateButtonText      = emoji.Fire.String() + " Создать игру"
+	LeaveButtonText       = emoji.ChequeredFlag.String() + " Выйти"
+	StartButtonText       = emoji.Rocket.String() + " Начать"
+	JoinButtonText        = emoji.VideoGame.String() + " Присоединиться к игре"
+	RatingButtonText      = emoji.Star.String() + " Таблица лидеров"
+	RuleButtonText        = "Правила"
+	GameSettingButtonText = "Параметры"
+	ProfileButtonText     = emoji.Alien.String() + " Профиль"
 
 	// builder inline button text
 	BuilderInlineNextText = "Далее"
@@ -27,13 +28,14 @@ var (
 )
 var (
 	// keyboard buttons
-	CreateButton  = tgbotapi.NewKeyboardButton(CreateButtonText)
-	JoinButton    = tgbotapi.NewKeyboardButton(JoinButtonText)
-	LeaveButton   = tgbotapi.NewKeyboardButton(LeaveButtonText)
-	StartButton   = tgbotapi.NewKeyboardButton(StartButtonText)
-	RatingButton  = tgbotapi.NewKeyboardButton(RatingButtonText)
-	RulesButton   = tgbotapi.NewKeyboardButton(RuleButtonText)
-	ProfileButton = tgbotapi.NewKeyboardButton(ProfileButtonText)
+	CreateButton      = tgbotapi.NewKeyboardButton(CreateButtonText)
+	JoinButton        = tgbotapi.NewKeyboardButton(JoinButtonText)
+	LeaveButton       = tgbotapi.NewKeyboardButton(LeaveButtonText)
+	StartButton       = tgbotapi.NewKeyboardButton(StartButtonText)
+	RatingButton      = tgbotapi.NewKeyboardButton(RatingButtonText)
+	RulesButton       = tgbotapi.NewKeyboardButton(RuleButtonText)
+	ProfileButton     = tgbotapi.NewKeyboardButton(ProfileButtonText)
+	GameSettingButton = tgbotapi.NewKeyboardButton(GameSettingButtonText)
 
 	CommonButtons = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(CreateButton),

@@ -175,6 +175,19 @@ func (r *Session) Serialize() model.State {
 	return s
 }
 
+func (r *Session) AlivePlayersLen() int {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+	var n int
+	for _, player := range r.Players {
+		if player.IsPlaying() && !player.Offline {
+			n++
+		}
+	}
+
+	return n
+}
+
 func (r *Session) Execute(userId int64, upd tgbotapi.Update) error {
 	if upd.CallbackQuery != nil {
 		if err := r.executeCbQuery(upd.CallbackQuery); err != nil {
@@ -284,7 +297,7 @@ func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) err
 			msg := tgbotapi.NewMessage(player.ChatId, "Ты запустил игру!")
 			msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
 				tgbotapi.NewKeyboardButtonRow(resource.RatingButton, resource.RulesButton),
-				tgbotapi.NewKeyboardButtonRow(resource.LeaveMenuButton),
+				tgbotapi.NewKeyboardButtonRow(resource.LeaveMenuButton, resource.GameSettingButton),
 			)
 			msg.ParseMode = tgbotapi.ModeMarkdown
 			if _, err := r.tg.Send(msg); err != nil {
@@ -298,6 +311,16 @@ func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) err
 	if query.Text == resource.RatingButtonText {
 		if player, ok := r.findPlayer(userId); ok {
 			msg := tgbotapi.NewMessage(player.ChatId, r.renderScores())
+			msg.ParseMode = tgbotapi.ModeMarkdown
+			if _, err := r.tg.Send(msg); err != nil {
+				return fmt.Errorf("send msg: %v", err)
+			}
+		}
+	}
+
+	if query.Text == resource.GameSettingButtonText {
+		if player, ok := r.findPlayer(userId); ok {
+			msg := tgbotapi.NewMessage(player.ChatId, r.renderSetting())
 			msg.ParseMode = tgbotapi.ModeMarkdown
 			if _, err := r.tg.Send(msg); err != nil {
 				return fmt.Errorf("send msg: %v", err)
@@ -355,7 +378,6 @@ func (r *Session) loop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("context closed")
 			return
 		case state := <-r.stateCh:
 			switch state {
@@ -790,19 +812,6 @@ func (r *Session) findPlayer(userId int64) (*model.Player, bool) {
 	}
 
 	return nil, false
-}
-
-func (r *Session) AlivePlayersLen() int {
-	r.mtx.RLock()
-	defer r.mtx.RUnlock()
-	var n int
-	for _, player := range r.Players {
-		if player.IsPlaying() && !player.Offline {
-			n++
-		}
-	}
-
-	return n
 }
 
 // register new player and send asyncBroadcast message about it

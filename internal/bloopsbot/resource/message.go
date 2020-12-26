@@ -62,7 +62,7 @@ var (
 
 // builder text messages
 var (
-	TextChooseCategories            = "Выбери темы или напиши свою"
+	TextChooseCategories            = "Выбери категории или напиши свою"
 	TextChooseRoundsNum             = "Выбери количество раундов(по умолчанию 3)"
 	TextDeleteComplexLetters        = "Убери сложные буквы"
 	TextRoundTime                   = "Выбери длительность раунда(по умочанию 30сек)"

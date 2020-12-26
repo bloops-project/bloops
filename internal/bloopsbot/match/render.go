@@ -74,7 +74,7 @@ func (r *Session) renderStartMsg() string {
 	buf.WriteString(" секунд\n\n")
 	buf.WriteString(emoji.CardIndex.String())
 	buf.WriteString(" ")
-	buf.WriteString("Темы:\n\n")
+	buf.WriteString("Категории:\n\n")
 	buf.WriteString(r.renderCategories())
 	buf.WriteString("\n\n")
 	buf.WriteString(resource.TextClickStartBtnMsg)
@@ -160,6 +160,30 @@ func (r *Session) renderCategories() string {
 		buf.WriteString(category)
 		buf.WriteString("\n")
 	}
+
+	return buf.String()
+}
+
+func (r *Session) renderSetting() string {
+	buf := strpool.Get()
+	defer func() {
+		buf.Reset()
+		strpool.Put(buf)
+	}()
+
+	buf.WriteString("*Параметры*\n\n")
+	buf.WriteString("Количество раундов: ")
+	buf.WriteString("*")
+	buf.WriteString(strconv.Itoa(r.Config.RoundsNum))
+	buf.WriteString("*")
+	buf.WriteString("\n")
+	buf.WriteString("Время раунда: ")
+	buf.WriteString("*")
+	buf.WriteString(strconv.Itoa(r.Config.RoundTime))
+	buf.WriteString(" сек*")
+	buf.WriteString("\n\n")
+	buf.WriteString("Категории")
+	buf.WriteString(r.renderCategories())
 
 	return buf.String()
 }
