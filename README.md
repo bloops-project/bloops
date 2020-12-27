@@ -9,7 +9,7 @@ ___.   .__                                 ___.           __
 ```
 
 ## What is bloopsbot?
-What is bloopsbot? 🤖 This is a telegram bot created to organize offline games similar to tiktok quizzes
+What is bloopsbot? 🤖 This is a telegram bot created to organize offline games similar to tiktok quizzes for local offline groups
 
 ## Location
 You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)

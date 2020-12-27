@@ -15,7 +15,7 @@ var (
 	JoinButtonText        = emoji.VideoGame.String() + " Присоединиться к игре"
 	RatingButtonText      = emoji.Star.String() + " Таблица лидеров"
 	RuleButtonText        = "Правила"
-	GameSettingButtonText = "Параметры"
+	GameSettingButtonText = "Параметры игы"
 	ProfileButtonText     = emoji.Alien.String() + " Профиль"
 
 	// builder inline button text

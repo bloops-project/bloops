@@ -73,8 +73,7 @@ func (r *Session) renderStartMsg() string {
 	buf.WriteString(strconv.Itoa(r.currRoundSeconds))
 	buf.WriteString(" секунд\n\n")
 	buf.WriteString(emoji.CardIndex.String())
-	buf.WriteString(" ")
-	buf.WriteString("Категории:\n\n")
+	buf.WriteString(" Категории:\n\n")
 	buf.WriteString(r.renderCategories())
 	buf.WriteString("\n\n")
 	buf.WriteString(resource.TextClickStartBtnMsg)
@@ -170,19 +169,34 @@ func (r *Session) renderSetting() string {
 		buf.Reset()
 		strpool.Put(buf)
 	}()
-
-	buf.WriteString("*Параметры*\n\n")
-	buf.WriteString("Количество раундов: ")
-	buf.WriteString("*")
+	buf.WriteString(emoji.Gear.String())
+	buf.WriteString(" *Параметры*\n\n")
+	buf.WriteString(emoji.ChequeredFlag.String())
+	buf.WriteString(" Количество раундов: ")
 	buf.WriteString(strconv.Itoa(r.Config.RoundsNum))
-	buf.WriteString("*")
 	buf.WriteString("\n")
-	buf.WriteString("Время раунда: ")
-	buf.WriteString("*")
+	buf.WriteString(emoji.Stopwatch.String())
+	buf.WriteString(" Время раунда: ")
 	buf.WriteString(strconv.Itoa(r.Config.RoundTime))
-	buf.WriteString(" сек*")
+	buf.WriteString(" сек\n")
+	buf.WriteString(emoji.GemStone.String())
+	buf.WriteString(" Блюпсы: ")
+	if len(r.Config.Bloopses) > 0 {
+		buf.WriteString("да")
+	} else {
+		buf.WriteString("нет")
+	}
+	buf.WriteString("\n")
+	buf.WriteString(emoji.Loudspeaker.String())
+	buf.WriteString(" Голосование: ")
+	if r.Config.Vote {
+		buf.WriteString("да")
+	} else {
+		buf.WriteString("нет")
+	}
 	buf.WriteString("\n\n")
-	buf.WriteString("Категории\n")
+	buf.WriteString(emoji.CardIndex.String())
+	buf.WriteString(" Категории\n")
 	buf.WriteString(r.renderCategories())
 
 	return buf.String()

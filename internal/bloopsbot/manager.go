@@ -268,7 +268,9 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 					return
 				}
 				if err := m.handleCommand(u, update); err != nil {
-					logger.Errorf("handle command query: %v", err)
+					if !errors.Is(err, match.ValiationErr) {
+						logger.Errorf("handle command query: %v", err)
+					}
 				}
 			}
 			if update.CallbackQuery != nil {
@@ -346,7 +348,7 @@ func (m *manager) handleCommand(u userModel.User, upd tgbotapi.Update) error {
 
 		if session, ok := m.userPlayingSession(u.Id); ok {
 			if err := session.Execute(u.Id, upd); err != nil {
-				return fmt.Errorf("execute playing session: %v", err)
+				return fmt.Errorf("execute playing session: %w", err)
 			}
 
 			return nil
@@ -399,10 +401,14 @@ func (m *manager) handleRulesButton(chatId int64) error {
 }
 
 func (m *manager) handleStartButton(u userModel.User, chatId int64) error {
-	msgText := fmt.Sprintf(resource.TextGreetingMsg, u.FirstName)
-	msg := tgbotapi.NewMessage(chatId, msgText)
+	msg := tgbotapi.NewMessage(chatId, fmt.Sprintf(resource.TextGreetingMsg, u.FirstName))
 	msg.ParseMode = tgbotapi.ModeMarkdown
-	msg.ReplyMarkup = resource.CommonButtons
+	_, mSessExist := m.userPlayingSession(u.Id)
+	_, bSessExist := m.userBuildingSession(u.Id)
+	if !mSessExist && !bSessExist {
+		msg.ReplyMarkup = resource.CommonButtons
+	}
+
 	if _, err := m.tg.Send(msg); err != nil {
 		return fmt.Errorf("send msg: %v", err)
 	}

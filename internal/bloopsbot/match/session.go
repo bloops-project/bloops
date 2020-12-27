@@ -19,6 +19,10 @@ import (
 )
 
 const (
+	MinStartPlayersNum = 2
+)
+
+const (
 	challengeMaxWeight   = 3
 	maxDefaultRoundScore = 30
 )
@@ -39,7 +43,10 @@ const (
 	stateKindFinished
 )
 
-var ContextFatalClosedErr = fmt.Errorf("context closed")
+var (
+	ContextFatalClosedErr = fmt.Errorf("context closed")
+	ValiationErr          = fmt.Errorf("validation errors")
+)
 
 func newVote() *vote {
 	return &vote{pub: make(chan struct{}, 1)}
@@ -177,13 +184,13 @@ func (r *Session) AlivePlayersLen() int {
 func (r *Session) Execute(userId int64, upd tgbotapi.Update) error {
 	if upd.CallbackQuery != nil {
 		if err := r.executeCbQuery(upd.CallbackQuery); err != nil {
-			return fmt.Errorf("execute msgCallback query: %v", err)
+			return fmt.Errorf("execute msgCallback query: %w", err)
 		}
 	}
 
 	if upd.Message != nil {
 		if err := r.executeMessageQuery(userId, upd.Message); err != nil {
-			return fmt.Errorf("execute message query: %v", err)
+			return fmt.Errorf("execute message query: %w", err)
 		}
 	}
 
@@ -196,13 +203,23 @@ func (r *Session) isPossibleStart(userId int64, cmd string) bool {
 
 func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) error {
 	if r.isPossibleStart(userId, query.Text) {
-		if len(r.Players) < 1 {
-			r.asyncBroadcast(resource.TextValidationRequiresMoreOnePlayerMsg, userId)
-			return nil
+		if len(r.Players) < MinStartPlayersNum {
+			if player, ok := r.findPlayer(userId); ok {
+				msg := tgbotapi.NewMessage(
+					player.ChatId,
+					fmt.Sprintf(resource.TextValidationRequiresMoreOnePlayerMsg, MinStartPlayersNum),
+				)
+				msg.ParseMode = tgbotapi.ModeMarkdown
+				if _, err := r.tg.Send(msg); err != nil {
+					return fmt.Errorf("send msg: %v", err)
+				}
+			}
+
+			return ValiationErr
 		}
 
 		if player, ok := r.findPlayer(userId); ok {
-			msg := tgbotapi.NewMessage(player.ChatId, "Ты запустил игру!")
+			msg := tgbotapi.NewMessage(player.ChatId, resource.TextGameStarted)
 			msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
 				tgbotapi.NewKeyboardButtonRow(resource.RatingButton, resource.RulesButton),
 				tgbotapi.NewKeyboardButtonRow(resource.LeaveMenuButton, resource.GameSettingButton),
@@ -212,6 +229,8 @@ func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) err
 				return fmt.Errorf("send msg: %v", err)
 			}
 		}
+
+		r.asyncBroadcast(resource.TextGameStarted, userId)
 
 		r.stateCh <- stateKindPlaying
 	}
