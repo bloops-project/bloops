@@ -3,8 +3,6 @@ package match
 import (
 	"bloop/internal/bloopsbot/resource"
 	"bloop/internal/database/matchstate/model"
-	statDb "bloop/internal/database/stat/database"
-	statModel "bloop/internal/database/stat/model"
 	"bloop/internal/logging"
 	"bloop/internal/util"
 	"context"
@@ -41,7 +39,7 @@ const (
 	stateKindFinished
 )
 
-var ContextEmerClosedErr = fmt.Errorf("context closed")
+var ContextFatalClosedErr = fmt.Errorf("context closed")
 
 func newVote() *vote {
 	return &vote{pub: make(chan struct{}, 1)}
@@ -68,16 +66,15 @@ func NewSession(config Config) *Session {
 		tg:          config.Tg,
 		Code:        config.Code,
 		stateCh:     make(chan uint8, 1),
-		State:       stateKindWaiting,
-		msgCallback: map[int]queryCallbackFn{},
 		sndCh:       make(chan tgbotapi.Chattable, 10),
-		doneFn:      config.DoneFn,
-		warnFn:      config.WarnFn,
-		timeout:     config.Timeout,
 		startCh:     make(chan struct{}, 1),
 		stopCh:      make(chan struct{}, 1),
 		passCh:      make(chan int64, 1),
-		statDb:      config.StatDb,
+		State:       stateKindWaiting,
+		msgCallback: map[int]queryCallbackFn{},
+		doneFn:      config.DoneFn,
+		warnFn:      config.WarnFn,
+		timeout:     config.Timeout,
 		CreatedAt:   time.Now(),
 	}
 }
@@ -101,15 +98,16 @@ type Session struct {
 	currRoundSeconds int
 	bloopsPoints     int
 
-	timeout    time.Duration
-	doneFn     func(session *Session) error
-	warnFn     func(session *Session) error
-	cancel     func()
+	timeout time.Duration
+
+	doneFn func(session *Session) error
+	warnFn func(session *Session) error
+	cancel func()
+
 	sndCh      chan tgbotapi.Chattable
 	startCh    chan struct{}
 	stopCh     chan struct{}
 	passCh     chan int64
-	statDb     *statDb.DB
 	sema       sync.Once
 	activeVote *vote
 }
@@ -139,6 +137,20 @@ func (r *Session) Run(ctx context.Context) {
 	logger.Infof("The game session created, code: %d, author: %s", r.Config.Code, r.Config.AuthorName)
 }
 
+func (r *Session) Favorites() []PlayerScore {
+	var favorites []PlayerScore
+	var max int
+
+	scores := r.Scores()
+	for _, score := range scores {
+		if score.Points >= max {
+			max = score.Points
+			favorites = append(favorites, score)
+		}
+	}
+	return favorites
+}
+
 func (r *Session) MoveState(kind uint8) {
 	r.stateCh <- kind
 }
@@ -147,32 +159,6 @@ func (r *Session) ChangeState(kind uint8) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	r.State = kind
-}
-
-func (r *Session) Serialize() model.State {
-	s := model.State{
-		Timeout:      r.timeout,
-		AuthorId:     r.Config.AuthorId,
-		AuthorName:   r.Config.AuthorName,
-		RoundsNum:    r.Config.RoundsNum,
-		RoundTime:    r.Config.RoundTime,
-		Vote:         r.Config.Vote,
-		Code:         r.Config.Code,
-		State:        r.State,
-		CurrRoundIdx: r.CurrRoundIdx,
-		CreatedAt:    r.CreatedAt,
-		Categories:   make([]string, len(r.Config.Categories)),
-		Letters:      make([]string, len(r.Config.Letters)),
-		Bloopses:     make([]resource.Bloops, len(r.Config.Bloopses)),
-		Players:      make([]*model.Player, len(r.Players)),
-	}
-
-	copy(s.Categories, r.Config.Categories)
-	copy(s.Letters, r.Config.Letters)
-	copy(s.Bloopses, r.Config.Bloopses)
-	copy(s.Players, r.Players)
-
-	return s
 }
 
 func (r *Session) AlivePlayersLen() int {
@@ -198,84 +184,6 @@ func (r *Session) Execute(userId int64, upd tgbotapi.Update) error {
 	if upd.Message != nil {
 		if err := r.executeMessageQuery(userId, upd.Message); err != nil {
 			return fmt.Errorf("execute message query: %v", err)
-		}
-	}
-
-	return nil
-}
-
-func (r *Session) persistStat() error {
-	favorites := r.favorites()
-	var stats []statModel.Stat
-	r.mtx.RLock()
-	for _, player := range r.Players {
-		stat := statModel.NewStat(player.UserId)
-		if player.Offline {
-			continue
-		}
-
-		for _, score := range favorites {
-			if player.UserId == score.Player.UserId {
-				stat.Conclusion = statModel.StatusFavorite
-			}
-		}
-
-		stat.Categories = make([]string, len(r.Config.Categories))
-		copy(stat.Categories, r.Config.Categories)
-
-		stat.RoundsNum = r.Config.RoundsNum
-		stat.PlayersNum = len(r.Players)
-
-		var bestDuration, worstDuration, sumDuration, durationNum time.Duration = 2 << 31, 0, 0, 0
-		var bestPoints, worstPoints, sumPoints, pointsNum int = 0, 2 << 31, 0, 0
-
-		for _, rate := range player.Rates {
-			if !rate.Bloops {
-				durationNum += 1
-				if rate.Duration < bestDuration {
-					bestDuration = rate.Duration
-				}
-				if rate.Duration > worstDuration {
-					worstDuration = rate.Duration
-				}
-				sumDuration += rate.Duration
-			} else {
-				stat.Bloops = append(stat.Bloops, rate.BloopsName)
-			}
-
-			pointsNum += 1
-			if rate.Points > bestPoints {
-				bestPoints = rate.Points
-			}
-			if rate.Points < worstPoints {
-				worstPoints = rate.Points
-			}
-			sumPoints += rate.Points
-		}
-
-		stat.SumPoints = sumPoints
-		stat.BestPoints = bestPoints
-		stat.WorstPoints = worstPoints
-
-		if pointsNum > 0 {
-			stat.AveragePoints = sumPoints / pointsNum
-		}
-
-		stat.BestDuration = bestDuration
-		stat.WorstDuration = worstDuration
-
-		if durationNum > 0 {
-			stat.AverageDuration = sumDuration / durationNum
-		}
-
-		stat.SumDuration = sumDuration
-		stats = append(stats, stat)
-	}
-	r.mtx.RUnlock()
-
-	for _, stat := range stats {
-		if err := r.statDb.Add(stat); err != nil {
-			return fmt.Errorf("statdb add: %v", err)
 		}
 	}
 
@@ -353,24 +261,6 @@ func (r *Session) callback(messageId int) (queryCallbackFn, bool) {
 	return cb, ok
 }
 
-func (r *Session) shutdown(ctx context.Context) {
-	logger := logging.FromContext(ctx).Named("match.shutdown")
-	if time.Since(r.CreatedAt) <= r.timeout {
-		if r.getState() != stateKindFinished {
-			if err := r.warnFn(r); err != nil {
-				logger.Errorf("done function: %v", err)
-			}
-
-			return
-		}
-		if err := r.doneFn(r); err != nil {
-			logger.Errorf("done function: %v", err)
-		}
-	}
-
-	logger.Infof("The game session closed, author: %s", r.Config.AuthorName)
-}
-
 func (r *Session) loop(ctx context.Context) {
 	logger := logging.FromContext(ctx).Named("match.loop")
 	defer r.shutdown(ctx)
@@ -384,11 +274,6 @@ func (r *Session) loop(ctx context.Context) {
 			case stateKindFinished:
 				r.ChangeState(stateKindFinished)
 				r.sendWhoFavoritesMsg()
-				if err := r.persistStat(); err != nil {
-					logger.Errorf("persist stat: %v", err)
-				}
-				logger.Infof("The results are saved to the db, author: %s", r.Config.AuthorName)
-
 				logger.Infof("The game session is complete, author: %s", r.Config.AuthorName)
 			case stateKindProcessing:
 				logger.Infof("Round is complete, processing results, author: %s", r.Config.AuthorName)
@@ -411,7 +296,7 @@ func (r *Session) loop(ctx context.Context) {
 				logger.Infof("The game changed its State to playing, author: %s", r.Config.AuthorName)
 				r.ChangeState(stateKindPlaying)
 				if err := r.playing(ctx); err != nil {
-					if !errors.Is(err, ContextEmerClosedErr) {
+					if !errors.Is(err, ContextFatalClosedErr) {
 						logger.Error(fmt.Errorf("playing: %v", err))
 						r.sendCrashMsg()
 						r.cancel()
@@ -436,18 +321,23 @@ func (r *Session) sendingPool(ctx context.Context) {
 	}
 }
 
-func (r *Session) favorites() []PlayerScore {
-	var favorites []PlayerScore
-	var max int
+func (r *Session) shutdown(ctx context.Context) {
+	logger := logging.FromContext(ctx).Named("match.shutdown")
+	if time.Since(r.CreatedAt) <= r.timeout {
+		if r.getState() != stateKindFinished {
+			if err := r.warnFn(r); err != nil {
+				logger.Errorf("done function: %v", err)
+			}
 
-	scores := r.Scores()
-	for _, score := range scores {
-		if score.Points >= max {
-			max = score.Points
-			favorites = append(favorites, score)
+			return
+		}
+
+		if err := r.doneFn(r); err != nil {
+			logger.Errorf("done function: %v", err)
 		}
 	}
-	return favorites
+
+	logger.Infof("The game session closed, author: %s", r.Config.AuthorName)
 }
 
 func (r *Session) playing(ctx context.Context) error {
@@ -525,7 +415,7 @@ PlayerLoop:
 						r.RemovePlayer(player.UserId)
 						continue PlayerLoop
 					case <-ctx.Done():
-						return ContextEmerClosedErr
+						return ContextFatalClosedErr
 					case userId := <-r.passCh:
 						if userId == player.UserId {
 							continue PlayerLoop
@@ -572,7 +462,7 @@ PlayerLoop:
 				r.RemovePlayer(player.UserId)
 				continue PlayerLoop
 			case <-ctx.Done():
-				return ContextEmerClosedErr
+				return ContextFatalClosedErr
 			case userId := <-r.passCh:
 				if userId == player.UserId {
 					continue PlayerLoop
@@ -659,7 +549,7 @@ OuterLoop:
 	for {
 		select {
 		case <-ctx.Done():
-			return 0, time.Time{}, ContextEmerClosedErr
+			return 0, time.Time{}, ContextFatalClosedErr
 		case userId := <-r.passCh:
 			if userId == player.UserId {
 				break OuterLoop
@@ -704,7 +594,7 @@ VoteLoop:
 	for {
 		select {
 		case <-ctx.Done():
-			return ContextEmerClosedErr
+			return ContextFatalClosedErr
 		case <-timer.C:
 			break VoteLoop
 		case <-r.activeVote.pub:

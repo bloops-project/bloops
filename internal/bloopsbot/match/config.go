@@ -2,7 +2,6 @@ package match
 
 import (
 	"bloop/internal/bloopsbot/resource"
-	statDb "bloop/internal/database/stat/database"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"time"
 )
@@ -25,7 +24,6 @@ type Config struct {
 	DoneFn  func(session *Session) error `json:"-"`
 	WarnFn  func(session *Session) error `json:"-"`
 	Timeout time.Duration                `json:"-"`
-	StatDb  *statDb.DB                   `json:"-"`
 }
 
 func (c Config) IsBloops() bool {

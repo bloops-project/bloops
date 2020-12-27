@@ -7,6 +7,7 @@ import (
 	stateDb "bloop/internal/database/matchstate/database"
 	matchstateModel "bloop/internal/database/matchstate/model"
 	statDb "bloop/internal/database/stat/database"
+	statModel "bloop/internal/database/stat/model"
 	userDb "bloop/internal/database/user/database"
 	userModel "bloop/internal/database/user/model"
 	"bloop/internal/logging"
@@ -91,6 +92,36 @@ func (m *manager) Run(ctx context.Context) error {
 	return nil
 }
 
+func (m *manager) serialize(session *match.Session) error {
+	s := matchstateModel.State{
+		Timeout:      session.Config.Timeout,
+		AuthorId:     session.Config.AuthorId,
+		AuthorName:   session.Config.AuthorName,
+		RoundsNum:    session.Config.RoundsNum,
+		RoundTime:    session.Config.RoundTime,
+		Vote:         session.Config.Vote,
+		Code:         session.Config.Code,
+		State:        session.State,
+		CurrRoundIdx: session.CurrRoundIdx,
+		CreatedAt:    session.CreatedAt,
+		Categories:   make([]string, len(session.Config.Categories)),
+		Letters:      make([]string, len(session.Config.Letters)),
+		Bloopses:     make([]resource.Bloops, len(session.Config.Bloopses)),
+		Players:      make([]*matchstateModel.Player, len(session.Players)),
+	}
+
+	copy(s.Categories, session.Config.Categories)
+	copy(s.Letters, session.Config.Letters)
+	copy(s.Bloopses, session.Config.Bloopses)
+	copy(s.Players, session.Players)
+
+	if err := m.stateDb.Add(s); err != nil {
+		return fmt.Errorf("state db add: %v", err)
+	}
+
+	return nil
+}
+
 func (m *manager) deserialize() error {
 	states, err := m.stateDb.FetchAll()
 	if err != nil && !errors.Is(err, stateDb.EntryNotFoundErr) {
@@ -98,7 +129,7 @@ func (m *manager) deserialize() error {
 	}
 	m.mtx.Lock()
 	for _, state := range states {
-		session := NewFromSerialized(state, m.tg, m.matchDoneFn, m.matchWarnFn, m.statDb)
+		session := NewFromSerialized(state, m.tg, m.matchDoneFn, m.matchWarnFn)
 		session.Run(m.ctxSess)
 		m.playingSessions[session.Config.Code] = session
 		for _, player := range session.Players {
@@ -113,6 +144,83 @@ func (m *manager) deserialize() error {
 			if !errors.Is(err, stateDb.BucketNotFoundErr) {
 				return fmt.Errorf("state db clean: %v", err)
 			}
+		}
+	}
+
+	return nil
+}
+
+func (m *manager) appendStat(session *match.Session) error {
+	favorites := session.Favorites()
+	var stats []statModel.Stat
+
+	for _, player := range session.Players {
+		stat := statModel.NewStat(player.UserId)
+		if player.Offline {
+			continue
+		}
+
+		for _, score := range favorites {
+			if player.UserId == score.Player.UserId {
+				stat.Conclusion = statModel.StatusFavorite
+			}
+		}
+
+		stat.Categories = make([]string, len(session.Config.Categories))
+		copy(stat.Categories, session.Config.Categories)
+
+		stat.RoundsNum = session.Config.RoundsNum
+		stat.PlayersNum = len(session.Players)
+
+		var bestDuration, worstDuration, sumDuration, durationNum time.Duration = 2 << 31, 0, 0, 0
+		var bestPoints, worstPoints, sumPoints, pointsNum = 0, 2 << 31, 0, 0
+
+		for _, rate := range player.Rates {
+			if !rate.Bloops {
+				durationNum += 1
+				if rate.Duration < bestDuration {
+					bestDuration = rate.Duration
+				}
+				if rate.Duration > worstDuration {
+					worstDuration = rate.Duration
+				}
+				sumDuration += rate.Duration
+			} else {
+				stat.Bloops = append(stat.Bloops, rate.BloopsName)
+			}
+
+			pointsNum += 1
+			if rate.Points > bestPoints {
+				bestPoints = rate.Points
+			}
+			if rate.Points < worstPoints {
+				worstPoints = rate.Points
+			}
+			sumPoints += rate.Points
+		}
+
+		stat.SumPoints = sumPoints
+		stat.BestPoints = bestPoints
+		stat.WorstPoints = worstPoints
+
+		if pointsNum > 0 {
+			stat.AveragePoints = sumPoints / pointsNum
+		}
+
+		stat.BestDuration = bestDuration
+		stat.WorstDuration = worstDuration
+
+		if durationNum > 0 {
+			stat.AverageDuration = sumDuration / durationNum
+		}
+
+		stat.SumDuration = sumDuration
+		stats = append(stats, stat)
+	}
+
+	for _, stat := range stats {
+		if err := m.statDb.Add(stat); err != nil {
+			return fmt.Errorf("stat db add: %v", err)
 		}
 	}
 
@@ -316,7 +424,6 @@ func (m *manager) buildGameConfig(session *builder.Session, code int64) match.Co
 		Categories: []string{},
 		Letters:    []string{},
 		Vote:       session.Vote,
-		StatDb:     m.statDb,
 	}
 
 	for _, category := range session.Categories {
@@ -390,9 +497,8 @@ func (m *manager) matchWarnFn(session *match.Session) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	state := session.Serialize()
-	if err := m.stateDb.Add(state); err != nil {
-		return fmt.Errorf("state db add: %v", err)
+	if err := m.serialize(session); err != nil {
+		return fmt.Errorf("serialize match session: %v", err)
 	}
 
 	for _, player := range session.Players {
@@ -407,7 +513,9 @@ func (m *manager) matchWarnFn(session *match.Session) error {
 func (m *manager) matchDoneFn(session *match.Session) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-
+	if err := m.appendStat(session); err != nil {
+		return fmt.Errorf("append stat: %v", err)
+	}
 	for _, player := range session.Players {
 		delete(m.userPlayingSessions, player.UserId)
 	}
@@ -746,7 +854,6 @@ func NewFromSerialized(
 	tg *tgbotapi.BotAPI,
 	doneFn func(session *match.Session) error,
 	warnFn func(session *match.Session) error,
-	statDb *statDb.DB,
 ) *match.Session {
 	c := match.Config{
 		AuthorId:   ser.AuthorId,
@@ -762,7 +869,6 @@ func NewFromSerialized(
 		Tg:         tg,
 		DoneFn:     doneFn,
 		WarnFn:     warnFn,
-		StatDb:     statDb,
 	}
 
 	copy(c.Categories, ser.Categories)

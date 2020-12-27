@@ -359,7 +359,7 @@ func (r *Session) sendRoundClosed() {
 }
 
 func (r *Session) sendWhoFavoritesMsg() {
-	favorites := r.favorites()
+	favorites := r.Favorites()
 
 	r.asyncBroadcast(r.renderGameFavorites(favorites))
 }
