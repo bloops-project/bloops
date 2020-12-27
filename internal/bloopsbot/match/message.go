@@ -32,7 +32,7 @@ func (r *Session) sendStartMsg(player *model.Player) error {
 		return fmt.Errorf("send msg: %v", err)
 	}
 
-	r.registerCallback(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
+	r.registerHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 		defer func() {
 			r.mtx.Lock()
 			defer r.mtx.Unlock()
@@ -84,7 +84,7 @@ func (r *Session) sendDroppedBloopsesMsg(player *model.Player, bloops *resource.
 		return fmt.Errorf("send msg: %v", err)
 	}
 
-	r.registerCallback(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
+	r.registerHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 		defer func() {
 			r.mtx.Lock()
 			defer r.mtx.Unlock()
@@ -310,7 +310,7 @@ func (r *Session) sendVotesMsg(voteMessages map[int64]int) error {
 			}
 			// registering callbacks for voting
 			voteMessages[player.ChatId] = output.MessageID
-			r.registerCallback(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
+			r.registerHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 				switch query.Data {
 				case resource.TextThumbUp:
 					r.thumbUp()
@@ -452,7 +452,7 @@ func (r *Session) sendChoiceBloopsMsg(ctx context.Context, player *model.Player)
 	opened := newOpenedReward()
 
 	mtx := sync.RWMutex{}
-	r.registerCallback(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
+	r.registerHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 		logger := logging.FromContext(ctx).Named("match.sendChoiceBloopsMsg")
 		defer func() {
 			if opened.equal(attempts) {

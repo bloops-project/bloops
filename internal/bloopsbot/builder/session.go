@@ -17,7 +17,7 @@ const (
 	defaultRoundTime = 30
 )
 
-type QueryCallbackFn func(query *tgbotapi.CallbackQuery) error
+type QueryCallbackHandlerFunc func(query *tgbotapi.CallbackQuery) error
 
 type stateKind uint8
 
@@ -63,8 +63,8 @@ func NewSession(
 		timeout:         timeout,
 		doneFn:          doneFn,
 		warnFn:          warnFn,
-		controlHandlers: map[string]QueryCallbackFn{},
-		actionHandlers:  map[stateKind]QueryCallbackFn{},
+		controlHandlers: map[string]QueryCallbackHandlerFunc{},
+		actionHandlers:  map[stateKind]QueryCallbackHandlerFunc{},
 		CreatedAt:       time.Now(),
 	}
 
@@ -110,8 +110,8 @@ type Session struct {
 	messageId int
 
 	timeout         time.Duration
-	controlHandlers map[string]QueryCallbackFn
-	actionHandlers  map[stateKind]QueryCallbackFn
+	controlHandlers map[string]QueryCallbackHandlerFunc
+	actionHandlers  map[stateKind]QueryCallbackHandlerFunc
 	cancel          func()
 	doneFn          func(session *Session) error
 	warnFn          func(session *Session) error
@@ -169,11 +169,11 @@ func (bs *Session) executeMessageQuery(query *tgbotapi.Message) error {
 	return nil
 }
 
-func (bs *Session) handleControlCb(command string, fn QueryCallbackFn) {
+func (bs *Session) handleControlCb(command string, fn QueryCallbackHandlerFunc) {
 	bs.controlHandlers[command] = fn
 }
 
-func (bs *Session) handleActionCb(kind stateKind, fn QueryCallbackFn) {
+func (bs *Session) handleActionCb(kind stateKind, fn QueryCallbackHandlerFunc) {
 	bs.actionHandlers[kind] = fn
 }
 

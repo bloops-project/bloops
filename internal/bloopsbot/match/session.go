@@ -34,7 +34,7 @@ const (
 	defaultInactiveVoteTime  = 30
 )
 
-type queryCallbackFn func(query *tgbotapi.CallbackQuery) error
+type QueryCallbackHandler func(query *tgbotapi.CallbackQuery) error
 
 const (
 	stateKindWaiting uint8 = iota + 1
@@ -45,7 +45,7 @@ const (
 
 var (
 	ContextFatalClosedErr = fmt.Errorf("context closed")
-	ValiationErr          = fmt.Errorf("validation errors")
+	ValidationErr         = fmt.Errorf("validation errors")
 )
 
 func newVote() *vote {
@@ -78,7 +78,7 @@ func NewSession(config Config) *Session {
 		stopCh:      make(chan struct{}, 1),
 		passCh:      make(chan int64, 1),
 		State:       stateKindWaiting,
-		msgCallback: map[int]queryCallbackFn{},
+		msgCallback: map[int]QueryCallbackHandler{},
 		doneFn:      config.DoneFn,
 		warnFn:      config.WarnFn,
 		timeout:     config.Timeout,
@@ -97,7 +97,7 @@ type Session struct {
 
 	tg          *tgbotapi.BotAPI
 	stateCh     chan uint8
-	msgCallback map[int]queryCallbackFn
+	msgCallback map[int]QueryCallbackHandler
 
 	CurrRoundIdx int
 	State        uint8
@@ -215,7 +215,7 @@ func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) err
 				}
 			}
 
-			return ValiationErr
+			return ValidationErr
 		}
 
 		if player, ok := r.findPlayer(userId); ok {
@@ -259,7 +259,7 @@ func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) err
 }
 
 func (r *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
-	if cb, ok := r.callback(query.Message.MessageID); ok {
+	if cb, ok := r.handler(query.Message.MessageID); ok {
 		if err := cb(query); err != nil {
 			return fmt.Errorf("msgCallback: %v", err)
 		}
@@ -267,13 +267,13 @@ func (r *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 	return nil
 }
 
-func (r *Session) registerCallback(messageId int, fn queryCallbackFn) {
+func (r *Session) registerHandler(messageId int, fn QueryCallbackHandler) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	r.msgCallback[messageId] = fn
 }
 
-func (r *Session) callback(messageId int) (queryCallbackFn, bool) {
+func (r *Session) handler(messageId int) (QueryCallbackHandler, bool) {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 	cb, ok := r.msgCallback[messageId]
@@ -450,7 +450,7 @@ PlayerLoop:
 			}
 		}
 
-		// send start button and register start button callback
+		// send start button and register start button handler
 		if err := r.sendStartMsg(player); err != nil {
 			return fmt.Errorf("send start msg: %v", err)
 		}
@@ -544,8 +544,8 @@ func (r *Session) ticker(ctx context.Context, player *model.Player) (int, time.T
 		return 0, time.Time{}, fmt.Errorf("send timer msg: %v", err)
 	}
 
-	// register stop button callback
-	r.registerCallback(messageId, func(query *tgbotapi.CallbackQuery) error {
+	// register stop button handler
+	r.registerHandler(messageId, func(query *tgbotapi.CallbackQuery) error {
 		defer func() {
 			r.mtx.Lock()
 			defer r.mtx.Unlock()

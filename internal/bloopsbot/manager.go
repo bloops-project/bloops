@@ -23,7 +23,13 @@ import (
 	"time"
 )
 
-var CommandNotFoundErr = fmt.Errorf("command not found")
+type TextCommandCbHandlerFunc func(string) error
+type TextCommandHandlerFunc = func(userModel.User, int64) error
+
+var (
+	TgResponseTypeNotFoundErr = fmt.Errorf("tg response not found")
+	CmdTextHandlerNotFoundErr = fmt.Errorf("command text handler not found")
+)
 
 func NewManager(tg *tgbotapi.BotAPI, config *Config, userDb *userDb.DB, statDb *statDb.DB, stateDb *stateDb.DB) *manager {
 	return &manager{
@@ -32,7 +38,8 @@ func NewManager(tg *tgbotapi.BotAPI, config *Config, userDb *userDb.DB, statDb *
 		userBuildingSessions: map[int64]*builder.Session{},
 		userPlayingSessions:  map[int64]*match.Session{},
 		playingSessions:      map[int64]*match.Session{},
-		cmdCb:                map[int64]func(string) error{},
+		dialogCmdCb:          map[int64]TextCommandCbHandlerFunc{},
+		cmdTextHandlers:      map[string]TextCommandHandlerFunc{},
 		userDb:               userDb,
 		statDb:               statDb,
 		stateDb:              stateDb,
@@ -51,7 +58,10 @@ type manager struct {
 	// key: generated int64 code
 	playingSessions map[int64]*match.Session
 	// command callbacks
-	cmdCb      map[int64]func(string) error
+	dialogCmdCb map[int64]TextCommandCbHandlerFunc
+	// command handlers
+	cmdTextHandlers map[string]TextCommandHandlerFunc
+
 	userDb     *userDb.DB
 	statDb     *statDb.DB
 	stateDb    *stateDb.DB
@@ -74,6 +84,17 @@ func (m *manager) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("tg get updates chan: %v", err)
 	}
+
+	m.registerTextCmdHandler(resource.CmdStart, m.handleStartButton)
+	m.registerTextCmdHandler(resource.CmdFeedback, m.handleFeedbackCommand)
+	m.registerTextCmdHandler(resource.CmdRules, m.handleRulesButton)
+	m.registerTextCmdHandler(resource.CmdProfile, m.handleProfileCmd)
+	m.registerTextCmdHandler(resource.ProfileButtonText, m.handleProfileButton)
+	m.registerTextCmdHandler(resource.CreateButtonText, m.handleCreateButton)
+	m.registerTextCmdHandler(resource.JoinButtonText, m.handleJoinButton)
+	m.registerTextCmdHandler(resource.LeaveButtonText, m.handleButtonExit)
+	m.registerTextCmdHandler(resource.RuleButtonText, m.handleRulesButton)
+	m.registerTextCmdHandler(resource.CmdAddPlayer, m.handleRegisterOfflinePlayer)
 
 	if err := m.deserialize(); err != nil {
 		return fmt.Errorf("deserialize: %v", err)
@@ -268,14 +289,14 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 					return
 				}
 				if err := m.handleCommand(u, update); err != nil {
-					if !errors.Is(err, match.ValiationErr) {
+					if !errors.Is(err, match.ValidationErr) {
 						logger.Errorf("handle command query: %v", err)
 					}
 				}
 			}
 			if update.CallbackQuery != nil {
 				if err := m.handleCallbackQuery(u, update); err != nil {
-					logger.Errorf("handle callback query: %v", err)
+					logger.Errorf("handle callbackHandler query: %v", err)
 				}
 			}
 		case <-ctx.Done():
@@ -285,74 +306,38 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 	}
 }
 
-type HandleBtnFn = func()
-
 func (m *manager) handleCommand(u userModel.User, upd tgbotapi.Update) error {
-	switch upd.Message.Text {
-	case resource.CmdStart:
-		if err := m.handleStartButton(u, upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("handle start cmd: %v", err)
-		}
-	case resource.CmdFeedback:
-		if err := m.handleFeedbackCommand(u, upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("handle feedback command: %v", err)
-		}
-	case resource.CmdRules:
-		if err := m.handleRulesButton(upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("handle rules cmd: %v", err)
-		}
-	case resource.CmdProfile:
-		if err := m.handleProfileCmd(u, upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("handle profile cmd: %v", err)
-		}
-	case resource.ProfileButtonText:
-		if err := m.handleProfileButton(u, upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("handle profile button: %v", err)
-		}
-	case resource.CreateButtonText:
-		if err := m.handleCreateButton(u, upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("handle create button: %v", err)
-		}
-	case resource.JoinButtonText:
-		if err := m.handleJoinButton(u, upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("handle join button: %v", err)
-		}
-	case resource.LeaveButtonText:
-		if err := m.handleButtonExit(u, upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("handle leave button: %v", err)
-		}
-	case resource.RuleButtonText:
-		if err := m.handleRulesButton(upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("handle rules button: %v", err)
-		}
-	case resource.CmdAddPlayer:
-		if err := m.handleRegisterOfflinePlayer(u, upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("handle add offline user cmd: %v", err)
-		}
-	default:
-		if cb, ok := m.callback(u.Id); ok {
-			if err := cb(upd.Message.Text); err != nil {
-				return fmt.Errorf("execute cb: %v", err)
-			}
-
-			return nil
+	fn, ok := m.textCmdHandler(upd.Message.Text)
+	if ok {
+		if err := fn(u, upd.Message.Chat.ID); err != nil {
+			return fmt.Errorf("execute command text handler: %v", err)
 		}
 
-		if session, ok := m.userBuildingSession(u.Id); ok {
-			if err := session.Execute(upd); err != nil {
-				return fmt.Errorf("execute building session: %v", err)
-			}
+		return nil
+	}
 
-			return nil
+	if cb, ok := m.callbackHandler(u.Id); ok {
+		if err := cb(upd.Message.Text); err != nil {
+			return fmt.Errorf("execute cb: %v", err)
 		}
 
-		if session, ok := m.userPlayingSession(u.Id); ok {
-			if err := session.Execute(u.Id, upd); err != nil {
-				return fmt.Errorf("execute playing session: %w", err)
-			}
+		return nil
+	}
 
-			return nil
+	if session, ok := m.userBuildingSession(u.Id); ok {
+		if err := session.Execute(upd); err != nil {
+			return fmt.Errorf("execute building session: %v", err)
 		}
+
+		return nil
+	}
+
+	if session, ok := m.userPlayingSession(u.Id); ok {
+		if err := session.Execute(u.Id, upd); err != nil {
+			return fmt.Errorf("execute playing session: %w", err)
+		}
+
+		return nil
 	}
 
 	return nil
@@ -389,7 +374,7 @@ func (m *manager) hash() (int64, error) {
 	return int64(h.Sum32() >> 20), nil
 }
 
-func (m *manager) handleRulesButton(chatId int64) error {
+func (m *manager) handleRulesButton(_ userModel.User, chatId int64) error {
 	msgText := resource.TextRulesMsg
 	msg := tgbotapi.NewMessage(chatId, msgText)
 	msg.ParseMode = tgbotapi.ModeMarkdown
@@ -555,7 +540,7 @@ func (m *manager) handleCreateButton(u userModel.User, chatId int64) error {
 
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	delete(m.cmdCb, u.Id)
+	delete(m.dialogCmdCb, u.Id)
 	m.userBuildingSessions[u.Id] = session
 	session.Run(m.ctxSess)
 
@@ -599,11 +584,11 @@ func (m *manager) handleProfileCmd(u userModel.User, chatId int64) error {
 		return fmt.Errorf("send msg: %v", err)
 	}
 
-	m.registerCallback(u.Id, func(username string) error {
+	m.registerCallbackHandler(u.Id, func(username string) error {
 		defer func() {
 			m.mtx.Lock()
 			defer m.mtx.Unlock()
-			delete(m.cmdCb, u.Id)
+			delete(m.dialogCmdCb, u.Id)
 		}()
 
 		username = strings.TrimPrefix(username, "@")
@@ -646,11 +631,11 @@ func (m *manager) handleRegisterOfflinePlayer(u userModel.User, chatId int64) er
 			return fmt.Errorf("send msg: %v", err)
 		}
 
-		m.registerCallback(u.Id, func(username string) error {
+		m.registerCallbackHandler(u.Id, func(username string) error {
 			defer func() {
 				m.mtx.Lock()
 				defer m.mtx.Unlock()
-				delete(m.cmdCb, u.Id)
+				delete(m.dialogCmdCb, u.Id)
 			}()
 
 			u.FirstName = username
@@ -683,11 +668,11 @@ func (m *manager) handleFeedbackCommand(u userModel.User, chatId int64) error {
 		return fmt.Errorf("send msg: %v", err)
 	}
 
-	m.registerCallback(u.Id, func(msg string) error {
+	m.registerCallbackHandler(u.Id, func(msg string) error {
 		defer func() {
 			m.mtx.Lock()
 			defer m.mtx.Unlock()
-			delete(m.cmdCb, u.Id)
+			delete(m.dialogCmdCb, u.Id)
 		}()
 
 		if m.config.Admin != "" {
@@ -713,7 +698,7 @@ func (m *manager) handleJoinButton(u userModel.User, chatId int64) error {
 		return fmt.Errorf("send msg: %v", err)
 	}
 
-	m.registerCallback(u.Id, func(msg string) error {
+	m.registerCallbackHandler(u.Id, func(msg string) error {
 		n, err := strconv.Atoi(msg)
 		if err != nil {
 			return fmt.Errorf("strconv: %v", err)
@@ -746,7 +731,7 @@ func (m *manager) handleJoinButton(u userModel.User, chatId int64) error {
 
 			m.mtx.Lock()
 			m.userPlayingSessions[u.Id] = session
-			delete(m.cmdCb, u.Id)
+			delete(m.dialogCmdCb, u.Id)
 			m.mtx.Unlock()
 		} else {
 			msg := tgbotapi.NewMessage(chatId, resource.TextGameRoomNotFoundMsg)
@@ -761,16 +746,29 @@ func (m *manager) handleJoinButton(u userModel.User, chatId int64) error {
 	return nil
 }
 
-func (m *manager) registerCallback(userId int64, fn func(string) error) {
+func (m *manager) registerTextCmdHandler(cmd string, handlerFunc TextCommandHandlerFunc) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	m.cmdCb[userId] = fn
+	m.cmdTextHandlers[cmd] = handlerFunc
 }
 
-func (m *manager) callback(userId int64) (func(msg string) error, bool) {
+func (m *manager) textCmdHandler(cmd string) (TextCommandHandlerFunc, bool) {
 	m.mtx.RLock()
 	defer m.mtx.RUnlock()
-	cb, ok := m.cmdCb[userId]
+	handler, ok := m.cmdTextHandlers[cmd]
+	return handler, ok
+}
+
+func (m *manager) registerCallbackHandler(userId int64, fn TextCommandCbHandlerFunc) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	m.dialogCmdCb[userId] = fn
+}
+
+func (m *manager) callbackHandler(userId int64) (func(msg string) error, bool) {
+	m.mtx.RLock()
+	defer m.mtx.RUnlock()
+	cb, ok := m.dialogCmdCb[userId]
 	return cb, ok
 }
 
@@ -779,7 +777,7 @@ func (m *manager) resetUserSessions(userId int64) {
 	defer m.mtx.Unlock()
 	delete(m.userBuildingSessions, userId)
 	delete(m.userPlayingSessions, userId)
-	delete(m.cmdCb, userId)
+	delete(m.dialogCmdCb, userId)
 }
 
 func (m *manager) userBuildingSession(userId int64) (*builder.Session, bool) {
@@ -815,7 +813,7 @@ func (m *manager) recvUser(upd tgbotapi.Update) (userModel.User, error) {
 	case upd.Message != nil:
 		tgUser = upd.Message.From
 	default:
-		return u, CommandNotFoundErr
+		return u, TgResponseTypeNotFoundErr
 	}
 
 	u, err := m.userDb.Fetch(int64(tgUser.ID))
