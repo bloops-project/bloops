@@ -22,13 +22,18 @@ You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)
 * 🎲 Quiz games - in 30 seconds, you need to name one word from several topic starting with a certain letter
 * 💎 Bloops - you can add additional tasks that diversify the process
 * 👽 Players have profiles, you can see your statistics
-* 👨‍💻 You can use a CLI or deploy from a container
+* 👨‍ You can use a CLI or deploy docker container
+* 💻 Key-value embedded db, when moving the application to another location, you just need to copy the db file and run the application
+* 🚀 Without complex configuration, compiled and started
 
 ## Play
 🚀 [PLAY](https://t.me/bloops_bot)
 
-## Language
-Only in Russian 😔
+## ite
+🖥🖱🌍 [bloops.fun](https://bloops.fun)
+
+## Language and localization
+No😔, only in Russian
 
 ## Development
 This is shitty code, I know there is no testing in it, but this is my little hackathon to get it done quickly for the holidays
