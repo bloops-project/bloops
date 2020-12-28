@@ -5,12 +5,14 @@ services:
     restart: on-failure
     ports:
       - 1234:1234
+      - 8888:8888
     volumes:
       - ./docker/data:/data
     environment:
       BLOOP_BOT_TOKEN: tgtoken
       BLOOP_ADMIN_USERNAME: username
       BLOOP_PORT: 1234
+      BLOOP_PROF_PORT: 8888
       BLOOP_BUILDING_TIMEOUT: 60m
       BLOOP_PLAYING_TIMEOUT: 24h
       BLOOP_TG_BOT_POLL_TIMEOUT: 60

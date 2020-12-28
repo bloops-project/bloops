@@ -138,7 +138,7 @@ func (r *Session) sendLetterMsg(player *model.Player) error {
 
 		sndCh <- buf.String()
 		sentMsg = buf.String()
-		util.Sleep(500 * time.Millisecond)
+		util.Sleep(300 * time.Millisecond)
 	}
 
 	buf.Reset()
