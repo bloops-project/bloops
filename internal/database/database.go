@@ -15,7 +15,7 @@ func NewFromEnv(ctx context.Context, config *Config) (*DB, error) {
 	logger := logging.FromContext(ctx)
 	logger.Infof("creating db connection")
 
-	db, err := bolt.Open(config.FileName, 0600, nil)
+	db, err := bolt.Open(config.FilePath, 0600, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection Db: %v", err)
 	}

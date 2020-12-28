@@ -76,21 +76,21 @@ func (m *manager) Stop() {
 }
 
 func (m *manager) Run(ctx context.Context) error {
+	var updates tgbotapi.UpdatesChannel
 	ctx, cancel := context.WithCancel(ctx)
 	logger := logging.FromContext(ctx)
 	m.cancel = cancel
 	m.ctxSess, m.cancelSess = context.WithCancel(context.Background())
-	var updates tgbotapi.UpdatesChannel
 
 	if m.config.BotWebhookHookUrl != "" {
 		_, err := m.tg.SetWebhook(tgbotapi.NewWebhook(m.config.BotWebhookHookUrl + m.config.BotToken))
 		if err != nil {
-			logger.Fatalf("tg bot set webhook: %v", err)
+			return fmt.Errorf("tg bot set webhook: %v", err)
 		}
 
 		info, err := m.tg.GetWebhookInfo()
 		if err != nil {
-			logger.Fatalf("get webhook info: %v", err)
+			return fmt.Errorf("get webhook info: %v", err)
 		}
 
 		if info.LastErrorDate != 0 {
@@ -98,17 +98,35 @@ func (m *manager) Run(ctx context.Context) error {
 		}
 
 		updates = m.tg.ListenForWebhook("/" + m.config.BotToken)
-		go http.ListenAndServe(":4444", nil)
+		go func() {
+			if err := http.ListenAndServe(":4444", nil); err != nil {
+				logger.Fatalf("listen and serve http stopped: %v", err)
+				cancel()
+			}
+		}()
 	} else {
+		resp, err := m.tg.RemoveWebhook()
+		if err != nil {
+			return fmt.Errorf("remove webhook: %v", err)
+		}
+
+		if !resp.Ok {
+			if resp.ErrorCode > 0 {
+				return fmt.Errorf("remove webhook with error code %d and description %s", resp.ErrorCode, resp.Description)
+			}
+			return fmt.Errorf("remove webhook response not ok=)")
+		}
+
 		upd := tgbotapi.NewUpdate(0)
 		upd.Timeout = int(m.config.TgBotPollTimeout.Seconds())
-		upds, err := m.tg.GetUpdatesChan(upd)
+		up, err := m.tg.GetUpdatesChan(upd)
 		if err != nil {
 			return fmt.Errorf("tg get updates chan: %v", err)
 		}
-		updates = upds
+		updates = up
 	}
 
+	// register text command handlers
 	m.registerTextCmdHandler(resource.CmdStart, m.handleStartButton)
 	m.registerTextCmdHandler(resource.CmdFeedback, m.handleFeedbackCommand)
 	m.registerTextCmdHandler(resource.CmdRules, m.handleRulesButton)
@@ -120,6 +138,7 @@ func (m *manager) Run(ctx context.Context) error {
 	m.registerTextCmdHandler(resource.RuleButtonText, m.handleRulesButton)
 	m.registerTextCmdHandler(resource.CmdAddPlayer, m.handleRegisterOfflinePlayer)
 
+	// deserialize not completed sessions
 	if err := m.deserialize(); err != nil {
 		return fmt.Errorf("deserialize: %v", err)
 	}
@@ -324,7 +343,6 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 				}
 			}
 		case <-ctx.Done():
-			// shutdown
 			return
 		}
 	}

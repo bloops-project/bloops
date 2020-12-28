@@ -5,13 +5,17 @@ import (
 	"bloop/internal/bloopsbot/resource"
 	"bloop/internal/cache/cachelru"
 	"bloop/internal/database"
+	stateDb "bloop/internal/database/matchstate/database"
 	statDb "bloop/internal/database/stat/database"
 	userdb "bloop/internal/database/user/database"
 	"bloop/internal/logging"
+	"bloop/internal/server"
 	"bloop/internal/shutdown"
+	"context"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/kelseyhightower/envconfig"
+	"net/http"
 	"os"
 )
 
@@ -27,8 +31,25 @@ func main() {
 	)
 
 	ctx, done := shutdown.New()
-	logger := logging.FromContext(ctx)
 	defer done()
+	logger := logging.FromContext(ctx)
+	if err := realMain(ctx, done); err != nil {
+		logger.Fatalf("main.realMain: %v", err)
+	}
+}
+
+func realMain(ctx context.Context, done func()) error {
+	logger := logging.FromContext(ctx)
+	_, _ = fmt.Fprint(os.Stdout, resource.Graffiti)
+	_, _ = fmt.Fprintf(
+		os.Stdout,
+		resource.GreetingCLI,
+		resource.ProjectName,
+		resource.ProjectVersion,
+		resource.TgBloopUrl,
+		resource.GithubBloopUrl,
+	)
+
 	config := bloopsbot.Config{}
 	if err := envconfig.Process("", &config); err != nil {
 		logger.Fatalf("processing the config: %v", err)
@@ -44,43 +65,104 @@ func main() {
 			}
 			logger.Fatalf("read token: %v", err)
 		}
+		if token == "" {
+			_, _ = fmt.Fprintf(os.Stdout, "bot token not found, please visit %s to register your bot and get a token",
+				resource.BotFatherUrl)
+			continue
+		}
+
 		break
 	}
 
-	_, _ = fmt.Fprint(os.Stdout, "token received: ", token, "\n")
+	_, _ = fmt.Fprint(os.Stdout, "Token received: ", token, "\n")
 	config.BotToken = token
-	if config.BotToken == "" {
-		logger.Fatalf(
-			"Bot token not found, please visit %s to register your bot and get a token",
+
+	var username string
+	fmt.Println("Enter admin username:")
+	for {
+		_, err := fmt.Scanf("%s\n", &username)
+		if err != nil {
+			if err.Error() == "unexpected newline" {
+				continue
+			}
+			logger.Fatalf("read token: %v", err)
+		}
+
+		if username == "" {
+			_, _ = fmt.Fprintf(os.Stdout, "username is empty, enter valid username: \n")
+			fmt.Println("Enter admin username:")
+			continue
+		}
+
+		break
+	}
+
+	_, _ = fmt.Fprint(os.Stdout, "Username received: ", username, "\n")
+	config.BotToken = token
+
+	if username == "" {
+		return fmt.Errorf(
+			"bot token not found, please visit %s to register your bot and get a token",
 			resource.BotFatherUrl,
 		)
 	}
 
 	tg, err := tgbotapi.NewBotAPI(config.BotToken)
 	if err != nil {
-		logger.Fatalf("bot api: %v", err)
+		if err.Error() == "Not Found" {
+			_, _ = fmt.Fprintf(os.Stdout, "Bot token not found\n")
+			return fmt.Errorf("bot token not found: %v", err)
+		}
+		return fmt.Errorf("bot api: %v", err)
 	}
 
 	tg.Debug = config.Debug
+
 	_, _ = fmt.Fprint(os.Stdout, "Authorization in telegram was successful: ", tg.Self.UserName, "\n")
+
 	db, err := database.NewFromEnv(ctx, &config.Db)
 	if err != nil {
-		logger.Fatalf("new database from env: %v", err)
+		return fmt.Errorf("new database from env: %v", err)
 	}
 
 	defer db.Close(ctx)
+
 	userCache, err := cachelru.NewLRU(config.CacheSize)
 	if err != nil {
-		logger.Fatalf("can not create lru cache: %v", err)
+		return fmt.Errorf("can not create lru cache: %v", err)
 	}
 
 	statCache, err := cachelru.NewLRU(config.CacheSize)
 	if err != nil {
-		logger.Fatalf("can not create lru cache: %v", err)
+		return fmt.Errorf("can not create lru cache: %v", err)
 	}
 
-	manager := bloopsbot.NewManager(tg, &config, userdb.New(db, userCache), statDb.New(db, statCache))
-	if err := manager.Run(ctx); err != nil {
-		logger.Fatalf("run: %v", err)
+	srv, err := server.New(config.Port)
+	if err != nil {
+		return fmt.Errorf("server.New: %v", err)
 	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/health", server.HandleHealth(ctx))
+
+	go func() {
+		if err := srv.ServeHTTP(ctx, &http.Server{Handler: mux}); err != nil {
+			logger.Fatalf("srv.ServeHTTP: %v", err)
+			done()
+		}
+	}()
+
+	go func() {
+		if err := http.ListenAndServe(":"+config.ProfPort, nil); err != nil {
+			logger.Fatalf("pprof default sever: %v", err)
+			done()
+		}
+	}()
+
+	manager := bloopsbot.NewManager(tg, &config, userdb.New(db, userCache), statDb.New(db, statCache), stateDb.New(db))
+	if err := manager.Run(ctx); err != nil {
+		return fmt.Errorf("run: %v", err)
+	}
+
+	return nil
 }

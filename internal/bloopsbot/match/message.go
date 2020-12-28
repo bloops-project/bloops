@@ -33,18 +33,16 @@ func (r *Session) sendStartMsg(player *model.Player) error {
 	}
 
 	r.registerHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
-		defer func() {
-			r.mtx.Lock()
-			defer r.mtx.Unlock()
-			delete(r.msgCallback, output.MessageID)
-		}()
-
 		if query.Data == resource.TextStartBtnData {
 			if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextStartBtnDataAnswer)); err != nil {
 				return fmt.Errorf("send answer: %v", err)
 			}
 			r.startCh <- struct{}{}
 		}
+
+		r.mtx.Lock()
+		defer r.mtx.Unlock()
+		delete(r.msgCallback, output.MessageID)
 
 		return nil
 	})
@@ -85,18 +83,16 @@ func (r *Session) sendDroppedBloopsesMsg(player *model.Player, bloops *resource.
 	}
 
 	r.registerHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
-		defer func() {
-			r.mtx.Lock()
-			defer r.mtx.Unlock()
-			delete(r.msgCallback, output.MessageID)
-		}()
-
 		if query.Data == resource.TextChallengeBtnDataAnswer {
 			if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextChallengeBtnDataAnswer)); err != nil {
 				return fmt.Errorf("send answer: %v", err)
 			}
 			r.startCh <- struct{}{}
 		}
+
+		r.mtx.Lock()
+		defer r.mtx.Unlock()
+		delete(r.msgCallback, output.MessageID)
 
 		return nil
 	})
@@ -142,6 +138,7 @@ func (r *Session) sendLetterMsg(player *model.Player) error {
 
 		sndCh <- buf.String()
 		sentMsg = buf.String()
+		util.Sleep(500 * time.Millisecond)
 	}
 
 	buf.Reset()

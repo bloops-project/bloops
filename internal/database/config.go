@@ -1,5 +1,5 @@
 package database
 
 type Config struct {
-	FileName string `envconfig:"SOD_DB_FILE" default:"db"`
+	FilePath string `envconfig:"BLOOP_DB_FILE" default:"./db"`
 }

@@ -8,6 +8,7 @@ ENV GO111MODULE=on \
   GOARCH=amd64
 
 WORKDIR /src
+
 COPY . .
 
 RUN go build \
@@ -15,14 +16,19 @@ RUN go build \
   -ldflags "-s -w -extldflags '-static'" \
   -installsuffix cgo \
   -tags netgo \
-  -o /bin/service \
-  ./cmd/bloop-srv
+  -o /app/bot \
+  ./cmd/bloopsbot-srv
 
-RUN strip /bin/service
-RUN upx -q -9 /bin/service
+RUN strip /app/bot
+RUN upx -q -9 /app/bot
 
+RUN mkdir /data
 
 FROM scratch
-COPY --from=builder /bin/service /bin/service
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /app/bot /app/bot
+COPY --from=builder /data /data
 
-ENTRYPOINT ["/bin/service"]
+VOLUME /data
+
+ENTRYPOINT ["/app/bot"]

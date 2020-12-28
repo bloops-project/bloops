@@ -546,11 +546,6 @@ func (r *Session) ticker(ctx context.Context, player *model.Player) (int, time.T
 
 	// register stop button handler
 	r.registerHandler(messageId, func(query *tgbotapi.CallbackQuery) error {
-		defer func() {
-			r.mtx.Lock()
-			defer r.mtx.Unlock()
-			delete(r.msgCallback, messageId)
-		}()
 		if query.Data == resource.TextStopBtnData {
 			if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextStopBtnDataAnswer)); err != nil {
 				return fmt.Errorf("send answer msg: %v", err)
@@ -558,6 +553,10 @@ func (r *Session) ticker(ctx context.Context, player *model.Player) (int, time.T
 
 			r.stopCh <- struct{}{}
 		}
+
+		r.mtx.Lock()
+		defer r.mtx.Unlock()
+		delete(r.msgCallback, messageId)
 
 		return nil
 	})

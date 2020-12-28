@@ -9,10 +9,14 @@ import (
 	statDb "bloop/internal/database/stat/database"
 	userdb "bloop/internal/database/user/database"
 	"bloop/internal/logging"
+	"bloop/internal/server"
 	"bloop/internal/shutdown"
+	"context"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/kelseyhightower/envconfig"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 )
 
@@ -28,23 +32,30 @@ func main() {
 	)
 
 	ctx, done := shutdown.New()
-	logger := logging.FromContext(ctx)
 	defer done()
+	logger := logging.FromContext(ctx)
+	if err := realMain(ctx, done); err != nil {
+		logger.Fatalf("main.realMain: %v", err)
+	}
+}
+
+func realMain(ctx context.Context, done func()) error {
+	logger := logging.FromContext(ctx)
 	config := bloopsbot.Config{}
 	if err := envconfig.Process("", &config); err != nil {
 		logger.Fatalf("processing the config: %v", err)
 	}
 
 	if config.BotToken == "" {
-		logger.Fatalf(
-			"Bot token not found, please visit %s to register your bot and get a token",
+		return fmt.Errorf(
+			"bot token not found, please visit %s to register your bot and get a token",
 			resource.BotFatherUrl,
 		)
 	}
 
 	tg, err := tgbotapi.NewBotAPI(config.BotToken)
 	if err != nil {
-		logger.Fatalf("bot api: %v", err)
+		return fmt.Errorf("bot api: %v", err)
 	}
 
 	tg.Debug = config.Debug
@@ -53,23 +64,47 @@ func main() {
 
 	db, err := database.NewFromEnv(ctx, &config.Db)
 	if err != nil {
-		logger.Fatalf("new database from env: %v", err)
+		return fmt.Errorf("new database from env: %v", err)
 	}
 
 	defer db.Close(ctx)
 
 	userCache, err := cachelru.NewLRU(config.CacheSize)
 	if err != nil {
-		logger.Fatalf("can not create lru cache: %v", err)
+		return fmt.Errorf("can not create lru cache: %v", err)
 	}
 
 	statCache, err := cachelru.NewLRU(config.CacheSize)
 	if err != nil {
-		logger.Fatalf("can not create lru cache: %v", err)
+		return fmt.Errorf("can not create lru cache: %v", err)
 	}
+
+	srv, err := server.New(config.Port)
+	if err != nil {
+		return fmt.Errorf("server.New: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/health", server.HandleHealth(ctx))
+
+	go func() {
+		if err := srv.ServeHTTP(ctx, &http.Server{Handler: mux}); err != nil {
+			logger.Fatalf("srv.ServeHTTP: %v", err)
+			done()
+		}
+	}()
+
+	go func() {
+		if err := http.ListenAndServe(":"+config.ProfPort, nil); err != nil {
+			logger.Fatalf("pprof default sever: %v", err)
+			done()
+		}
+	}()
 
 	manager := bloopsbot.NewManager(tg, &config, userdb.New(db, userCache), statDb.New(db, statCache), stateDb.New(db))
 	if err := manager.Run(ctx); err != nil {
-		logger.Fatalf("run: %v", err)
+		return fmt.Errorf("run: %v", err)
 	}
+
+	return nil
 }
