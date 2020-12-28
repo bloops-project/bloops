@@ -11,8 +11,10 @@ type Config struct {
 	Debug bool `envconfig:"BLOOP_DEBUG" default:"false"`
 	// Number of items in the cache
 	CacheSize int `envconfig:"BLOOP_CACHE_SIZE" default:"1024"`
+	// Not working in the CLI application. If you want to work through web hooks (https://domain:tlsport/)
+	BotWebhookHookUrl string `envconfig:"BLOOP_BOT_WEBHOOK_URL"`
 	// Telegram bot token
-	Token string `envconfig:"BLOOP_TOKEN"`
+	BotToken string `envconfig:"BLOOP_BOT_TOKEN"`
 	// Waiting time to complete the game creation session
 	BuildingTimeout time.Duration `envconfig:"BLOOP_BUILDING_TIMEOUT" default:"60m"`
 	// Waiting time for the game session to end

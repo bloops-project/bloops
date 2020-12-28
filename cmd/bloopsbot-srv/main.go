@@ -35,19 +35,20 @@ func main() {
 		logger.Fatalf("processing the config: %v", err)
 	}
 
-	if config.Token == "" {
+	if config.BotToken == "" {
 		logger.Fatalf(
 			"Bot token not found, please visit %s to register your bot and get a token",
 			resource.BotFatherUrl,
 		)
 	}
 
-	tg, err := tgbotapi.NewBotAPI(config.Token)
+	tg, err := tgbotapi.NewBotAPI(config.BotToken)
 	if err != nil {
 		logger.Fatalf("bot api: %v", err)
 	}
 
 	tg.Debug = config.Debug
+
 	_, _ = fmt.Fprint(os.Stdout, "Authorization in telegram was successful: ", tg.Self.UserName, "\n")
 
 	db, err := database.NewFromEnv(ctx, &config.Db)

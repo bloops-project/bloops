@@ -13,7 +13,7 @@ var (
 	TextLeavingSessionsMsg                 = "Ты покинул все игровые сеансы"
 	TextSendOfflinePlayerUsernameMsg       = "Отправь имя оффлайн пользователя"
 	TextSendProfileMsg                     = "Отправь @username пользователя"
-	TextWarnMsg                            = emoji.BrokenHeart.String() + " К сожалению " + emoji.Robot.String() + " бот обновляется, необходимо попробовать через несколько минут"
+	TextWarnMsg                            = emoji.BrokenHeart.String() + " К сожалению " + emoji.Robot.String() + " бот обновляется, необходимо попробовать заново через несколько минут"
 	TextProfileCmdUserNotFound             = "Пользователь не найден"
 	TextGameRoomNotFound                   = "Тебе нужно присоединиться к игре, чтобы добавлять оффлайн игроков"
 	TextOfflinePlayerAdded                 = "Оффлайн игрок добавлен. Все сообщения будут приходить тебе"

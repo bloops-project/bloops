@@ -16,6 +16,7 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"hash/fnv"
+	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
@@ -76,8 +77,30 @@ func (m *manager) Stop() {
 
 func (m *manager) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
+	logger := logging.FromContext(ctx)
 	m.cancel = cancel
 	m.ctxSess, m.cancelSess = context.WithCancel(context.Background())
+	var updates tgbotapi.UpdatesChannel
+
+	if m.config.BotWebhookHookUrl != "" {
+		_, err := m.tg.SetWebhook(tgbotapi.NewWebhook(m.config.BotWebhookHookUrl + m.config.BotToken))
+		if err != nil {
+			logger.Fatalf("tg bot set webhook: %v", err)
+		}
+
+		info, err := m.tg.GetWebhookInfo()
+		if err != nil {
+			logger.Fatalf("get webhook info: %v", err)
+		}
+
+		if info.LastErrorDate != 0 {
+			logger.Fatalf("Telegram callback failed: %s", info.LastErrorMessage)
+		}
+
+		updates = m.tg.ListenForWebhook("/" + m.config.BotToken)
+		go http.ListenAndServe(":4444", nil)
+	}
+
 	upd := tgbotapi.NewUpdate(0)
 	upd.Timeout = int(m.config.TgBotPollTimeout.Seconds())
 	updates, err := m.tg.GetUpdatesChan(upd)

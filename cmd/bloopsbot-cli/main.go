@@ -48,15 +48,15 @@ func main() {
 	}
 
 	_, _ = fmt.Fprint(os.Stdout, "token received: ", token, "\n")
-	config.Token = token
-	if config.Token == "" {
+	config.BotToken = token
+	if config.BotToken == "" {
 		logger.Fatalf(
 			"Bot token not found, please visit %s to register your bot and get a token",
 			resource.BotFatherUrl,
 		)
 	}
 
-	tg, err := tgbotapi.NewBotAPI(config.Token)
+	tg, err := tgbotapi.NewBotAPI(config.BotToken)
 	if err != nil {
 		logger.Fatalf("bot api: %v", err)
 	}
