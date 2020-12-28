@@ -94,7 +94,7 @@ func (m *manager) Run(ctx context.Context) error {
 		}
 
 		if info.LastErrorDate != 0 {
-			logger.Fatalf("Telegram callback failed: %s", info.LastErrorMessage)
+			logger.Errorf("Telegram callback failed: %s", info.LastErrorMessage)
 		}
 
 		updates = m.tg.ListenForWebhook("/" + m.config.BotToken)
