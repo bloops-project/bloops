@@ -99,13 +99,14 @@ func (m *manager) Run(ctx context.Context) error {
 
 		updates = m.tg.ListenForWebhook("/" + m.config.BotToken)
 		go http.ListenAndServe(":4444", nil)
-	}
-
-	upd := tgbotapi.NewUpdate(0)
-	upd.Timeout = int(m.config.TgBotPollTimeout.Seconds())
-	updates, err := m.tg.GetUpdatesChan(upd)
-	if err != nil {
-		return fmt.Errorf("tg get updates chan: %v", err)
+	} else {
+		upd := tgbotapi.NewUpdate(0)
+		upd.Timeout = int(m.config.TgBotPollTimeout.Seconds())
+		upds, err := m.tg.GetUpdatesChan(upd)
+		if err != nil {
+			return fmt.Errorf("tg get updates chan: %v", err)
+		}
+		updates = upds
 	}
 
 	m.registerTextCmdHandler(resource.CmdStart, m.handleStartButton)
