@@ -50,7 +50,7 @@ func (r *Session) sendStartMsg(player *model.Player) error {
 	return nil
 }
 
-func (r *Session) checkChallengeSendMsg(player *model.Player) (int, error) {
+func (r *Session) checkBloopsSendMsg(player *model.Player) (int, error) {
 	msg := tgbotapi.NewMessage(player.ChatId, emoji.GameDie.String()+"...")
 	output, err := r.tg.Send(msg)
 	if err != nil {

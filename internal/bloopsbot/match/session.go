@@ -386,7 +386,7 @@ PlayerLoop:
 				return fmt.Errorf("send msg: %v", err)
 			}
 
-			messageId, err := r.checkChallengeSendMsg(player)
+			messageId, err := r.checkBloopsSendMsg(player)
 			if err != nil {
 				return err
 			}

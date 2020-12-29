@@ -593,7 +593,9 @@ func (m *manager) deserialize() error {
 		session.Run(m.ctxSess)
 		m.matchSessions[session.Config.Code] = session
 		for _, player := range session.Players {
-			m.userMatchSessions[player.UserId] = session
+			if !player.Offline {
+				m.userMatchSessions[player.UserId] = session
+			}
 		}
 		session.MoveState(session.State)
 	}
