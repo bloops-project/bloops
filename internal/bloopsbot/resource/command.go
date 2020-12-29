@@ -7,4 +7,5 @@ var (
 	CmdAddPlayer = "/add"
 	CmdProfile   = "/profile"
 	CmdFeedback  = "/feedback"
+	CmdBan       = "/ban"
 )

@@ -1,6 +1,8 @@
 package util
 
 import (
+	"fmt"
+	"hash/fnv"
 	"math"
 	"time"
 )
@@ -25,4 +27,19 @@ func Noun(number int, one, two, five string) string {
 		return two
 	}
 	return five
+}
+
+func GenerateCodeHash() (int64, error) {
+	h := fnv.New32a()
+	bytes, err := time.Now().MarshalBinary()
+	if err != nil {
+		return 0, fmt.Errorf("hash binary encode error: %v", err)
+	}
+
+	_, err = h.Write(bytes)
+	if err != nil {
+		return 0, fmt.Errorf("hash write error: %w", err)
+	}
+
+	return int64(h.Sum32() >> 20), nil
 }

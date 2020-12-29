@@ -29,7 +29,7 @@ You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)
 ## Play
 🚀 [PLAY](https://t.me/bloops_bot)
 
-## ite
+## Site
 🖥🖱🌍 [bloops.fun](https://bloops.fun)
 
 ## Language and localization

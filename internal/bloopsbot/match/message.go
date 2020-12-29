@@ -2,10 +2,10 @@ package match
 
 import (
 	"bloop/internal/bloopsbot/resource"
+	"bloop/internal/bloopsbot/util"
 	"bloop/internal/database/matchstate/model"
 	"bloop/internal/logging"
 	"bloop/internal/strpool"
-	"bloop/internal/util"
 	"context"
 	"fmt"
 	"github.com/enescakir/emoji"
@@ -32,7 +32,7 @@ func (r *Session) sendStartMsg(player *model.Player) error {
 		return fmt.Errorf("send msg: %v", err)
 	}
 
-	r.registerHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
+	r.registerCbHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 		if query.Data == resource.TextStartBtnData {
 			if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextStartBtnDataAnswer)); err != nil {
 				return fmt.Errorf("send answer: %v", err)
@@ -82,7 +82,7 @@ func (r *Session) sendDroppedBloopsesMsg(player *model.Player, bloops *resource.
 		return fmt.Errorf("send msg: %v", err)
 	}
 
-	r.registerHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
+	r.registerCbHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 		if query.Data == resource.TextChallengeBtnDataAnswer {
 			if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextChallengeBtnDataAnswer)); err != nil {
 				return fmt.Errorf("send answer: %v", err)
@@ -307,7 +307,7 @@ func (r *Session) sendVotesMsg(voteMessages map[int64]int) error {
 			}
 			// registering callbacks for voting
 			voteMessages[player.ChatId] = output.MessageID
-			r.registerHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
+			r.registerCbHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 				switch query.Data {
 				case resource.TextThumbUp:
 					r.thumbUp()
@@ -449,7 +449,7 @@ func (r *Session) sendChoiceBloopsMsg(ctx context.Context, player *model.Player)
 	opened := newOpenedReward()
 
 	mtx := sync.RWMutex{}
-	r.registerHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
+	r.registerCbHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 		logger := logging.FromContext(ctx).Named("match.sendChoiceBloopsMsg")
 		defer func() {
 			if opened.equal(attempts) {

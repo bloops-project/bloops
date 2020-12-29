@@ -2,9 +2,9 @@ package match
 
 import (
 	"bloop/internal/bloopsbot/resource"
+	"bloop/internal/bloopsbot/util"
 	"bloop/internal/database/matchstate/model"
 	"bloop/internal/logging"
-	"bloop/internal/util"
 	"context"
 	"errors"
 	"fmt"
@@ -259,7 +259,7 @@ func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) err
 }
 
 func (r *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
-	if cb, ok := r.handler(query.Message.MessageID); ok {
+	if cb, ok := r.cbHandler(query.Message.MessageID); ok {
 		if err := cb(query); err != nil {
 			return fmt.Errorf("msgCallback: %v", err)
 		}
@@ -267,13 +267,13 @@ func (r *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 	return nil
 }
 
-func (r *Session) registerHandler(messageId int, fn QueryCallbackHandler) {
+func (r *Session) registerCbHandler(messageId int, fn QueryCallbackHandler) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	r.msgCallback[messageId] = fn
 }
 
-func (r *Session) handler(messageId int) (QueryCallbackHandler, bool) {
+func (r *Session) cbHandler(messageId int) (QueryCallbackHandler, bool) {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 	cb, ok := r.msgCallback[messageId]
@@ -545,7 +545,7 @@ func (r *Session) ticker(ctx context.Context, player *model.Player) (int, time.T
 	}
 
 	// register stop button handler
-	r.registerHandler(messageId, func(query *tgbotapi.CallbackQuery) error {
+	r.registerCbHandler(messageId, func(query *tgbotapi.CallbackQuery) error {
 		if query.Data == resource.TextStopBtnData {
 			if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextStopBtnDataAnswer)); err != nil {
 				return fmt.Errorf("send answer msg: %v", err)

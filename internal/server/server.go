@@ -31,19 +31,6 @@ func New(port string) (*Server, error) {
 	}, nil
 }
 
-func NewFromListener(listener net.Listener) (*Server, error) {
-	addr, ok := listener.Addr().(*net.TCPAddr)
-	if !ok {
-		return nil, fmt.Errorf("listener is not tcp")
-	}
-
-	return &Server{
-		ip:       addr.IP.String(),
-		port:     strconv.Itoa(addr.Port),
-		listener: listener,
-	}, nil
-}
-
 func (s *Server) ServeHTTP(ctx context.Context, srv *http.Server) error {
 	logger := logging.FromContext(ctx)
 

@@ -8,6 +8,7 @@ var (
 		"Когда все игроки присоединятся тебе нужно нажать\n" + emoji.Rocket.String() + " *Начать* " + " для старта"
 	TextJoinedGameMsg                      = "Ты присоединился к игре! "
 	TextFeedbackMsg                        = "Ты можешь отправить анонимный отзыв"
+	TextBanMsg                             = "Отправь username пользователя"
 	TextGameRoomNotFoundMsg                = "Игровая комната не найдена"
 	TextSendJoinedCodeMsg                  = "Отправь код подключения к игре"
 	TextLeavingSessionsMsg                 = "Ты покинул все игровые сеансы"

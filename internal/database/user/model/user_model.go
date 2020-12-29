@@ -2,6 +2,13 @@ package model
 
 import "time"
 
+type Status uint8
+
+const (
+	StatusActive Status = iota + 1
+	StatusBanned
+)
+
 type User struct {
 	Id           int64     `json:"id"`
 	Admin        bool      `json:"admin"`
@@ -10,6 +17,7 @@ type User struct {
 	LanguageCode string    `json:"languageCode"`
 	Username     string    `json:"username"`
 	CreatedAt    time.Time `json:"createdAt"`
+	Status       Status    `json:"banned"`
 	Stars        int
 	Bloops       int
 }
