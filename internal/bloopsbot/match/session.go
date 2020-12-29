@@ -525,6 +525,10 @@ PlayerLoop:
 			}
 		}
 
+		if _, err := r.tg.Send(tgbotapi.NewStickerShare(player.ChatId, resource.GenerateSticker(rate.Points > 0))); err != nil {
+			return fmt.Errorf("send sticker: %v", err)
+		}
+
 		r.mtx.Lock()
 		player.Rates = append(player.Rates, rate)
 		r.mtx.Unlock()

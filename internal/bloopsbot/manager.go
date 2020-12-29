@@ -347,6 +347,10 @@ func (m *manager) builderDoneFn(session *builder.Session) error {
 		return fmt.Errorf("send msg: %v", err)
 	}
 
+	if _, err := m.tg.Send(tgbotapi.NewStickerShare(session.ChatId, resource.GenerateSticker(true))); err != nil {
+		return fmt.Errorf("send msg: %v", err)
+	}
+
 	msg = tgbotapi.NewMessage(session.ChatId, strconv.Itoa(int(code)))
 	msg.ParseMode = tgbotapi.ModeMarkdown
 	msg.ReplyMarkup = resource.CommonButtons
