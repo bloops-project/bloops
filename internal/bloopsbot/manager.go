@@ -264,7 +264,7 @@ func (m *manager) handleCallbackQuery(ctx context.Context, u userModel.User, upd
 	logger.Infof(
 		"Command received from user %s, command %s, data %s",
 		u.FirstName,
-		upd.CallbackQuery.Message,
+		upd.CallbackQuery.Message.Text,
 		upd.CallbackQuery.Data,
 	)
 
