@@ -37,10 +37,10 @@ const (
 type QueryCallbackHandler func(query *tgbotapi.CallbackQuery) error
 
 const (
-	stateKindWaiting uint8 = iota + 1
-	stateKindPlaying
-	stateKindProcessing
-	stateKindFinished
+	StateKindWaiting uint8 = iota + 1
+	StateKindPlaying
+	StateKindProcessing
+	StateKindFinished
 )
 
 var (
@@ -77,7 +77,7 @@ func NewSession(config Config) *Session {
 		startCh:     make(chan struct{}, 1),
 		stopCh:      make(chan struct{}, 1),
 		passCh:      make(chan int64, 1),
-		State:       stateKindWaiting,
+		State:       StateKindWaiting,
 		msgCallback: map[int]QueryCallbackHandler{},
 		doneFn:      config.DoneFn,
 		warnFn:      config.WarnFn,
@@ -198,7 +198,7 @@ func (r *Session) Execute(userId int64, upd tgbotapi.Update) error {
 }
 
 func (r *Session) isPossibleStart(userId int64, cmd string) bool {
-	return r.State == stateKindWaiting && cmd == resource.StartButtonText && r.Config.AuthorId == userId
+	return r.State == StateKindWaiting && cmd == resource.StartButtonText && r.Config.AuthorId == userId
 }
 
 func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) error {
@@ -232,7 +232,7 @@ func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) err
 
 		r.asyncBroadcast(resource.TextGameStarted, userId)
 
-		r.stateCh <- stateKindPlaying
+		r.stateCh <- StateKindPlaying
 	}
 
 	if query.Text == resource.RatingButtonText {
@@ -291,30 +291,30 @@ func (r *Session) loop(ctx context.Context) {
 			return
 		case state := <-r.stateCh:
 			switch state {
-			case stateKindFinished:
-				r.ChangeState(stateKindFinished)
+			case StateKindFinished:
+				r.ChangeState(StateKindFinished)
 				r.sendWhoFavoritesMsg()
 				logger.Infof("The game session is complete, author: %s", r.Config.AuthorName)
-			case stateKindProcessing:
+			case StateKindProcessing:
 				logger.Infof("Round is complete, processing results, author: %s", r.Config.AuthorName)
-				r.ChangeState(stateKindProcessing)
+				r.ChangeState(StateKindProcessing)
 				if r.Config.RoundsNum == r.CurrRoundIdx+1 {
-					r.stateCh <- stateKindFinished
+					r.stateCh <- StateKindFinished
 					break
 				}
 
 				if r.AlivePlayersLen() == 0 {
-					r.stateCh <- stateKindFinished
+					r.stateCh <- StateKindFinished
 					break
 				}
 
 				r.sendRoundClosed()
 				util.Sleep(3 * time.Second)
 				r.nextRound()
-				r.stateCh <- stateKindPlaying
-			case stateKindPlaying:
+				r.stateCh <- StateKindPlaying
+			case StateKindPlaying:
 				logger.Infof("The game changed its State to playing, author: %s", r.Config.AuthorName)
-				r.ChangeState(stateKindPlaying)
+				r.ChangeState(StateKindPlaying)
 				if err := r.playing(ctx); err != nil {
 					if !errors.Is(err, ContextFatalClosedErr) {
 						logger.Error(fmt.Errorf("playing: %v", err))
@@ -344,7 +344,7 @@ func (r *Session) sendingPool(ctx context.Context) {
 func (r *Session) shutdown(ctx context.Context) {
 	logger := logging.FromContext(ctx).Named("match.shutdown")
 	if time.Since(r.CreatedAt) <= r.timeout {
-		if r.getState() != stateKindFinished {
+		if r.getState() != StateKindFinished {
 			if err := r.warnFn(r); err != nil {
 				logger.Errorf("done function: %v", err)
 			}
@@ -366,7 +366,7 @@ PlayerLoop:
 		// choosing the next player
 		player, ok := r.nextPlayer()
 		if !ok {
-			r.stateCh <- stateKindProcessing
+			r.stateCh <- StateKindProcessing
 			return nil
 		}
 
@@ -754,7 +754,7 @@ func (r *Session) RemovePlayer(userId int64) {
 	if ok {
 		r.asyncBroadcast(fmt.Sprintf(resource.TextPlayerLeftGameMsg, player.FormatFirstName()))
 		r.removePlayer(userId)
-		if r.AlivePlayersLen() == 0 && r.getState() == stateKindFinished {
+		if r.AlivePlayersLen() == 0 && r.getState() == StateKindFinished {
 			r.Stop()
 		}
 		r.passCh <- player.UserId

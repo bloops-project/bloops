@@ -597,8 +597,12 @@ func (m *manager) deserialize() error {
 				m.userMatchSessions[player.UserId] = session
 			}
 		}
-		session.MoveState(session.State)
 	}
+
+	for _, session := range m.matchSessions {
+		session.MoveState(match.StateKindPlaying)
+	}
+
 	m.mtx.Unlock()
 
 	if len(states) > 0 {
