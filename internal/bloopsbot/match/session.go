@@ -294,9 +294,13 @@ func (r *Session) loop(ctx context.Context) {
 			case StateKindFinished:
 				r.ChangeState(StateKindFinished)
 				r.sendWhoFavoritesMsg()
-				logger.Infof("The game session is complete, author: %s", r.Config.AuthorName)
+				logger.Infof("The game session is complete %d, author: %s", r.Config.Code, r.Config.AuthorName)
 			case StateKindProcessing:
-				logger.Infof("Round is complete, processing results, author: %s", r.Config.AuthorName)
+				logger.Infof(
+					"Game session %d, author: %s, processing results",
+					r.Config.Code,
+					r.Config.AuthorName,
+				)
 				r.ChangeState(StateKindProcessing)
 				if r.Config.RoundsNum == r.CurrRoundIdx+1 {
 					r.stateCh <- StateKindFinished
@@ -313,13 +317,19 @@ func (r *Session) loop(ctx context.Context) {
 				r.nextRound()
 				r.stateCh <- StateKindPlaying
 			case StateKindPlaying:
-				logger.Infof("The game changed its State to playing, author: %s", r.Config.AuthorName)
+				logger.Infof("The game %d changed its State to playing, author: %s", r.Config.Code, r.Config.AuthorName)
+				logger.Infof(
+					"Game session %d, author: %s, next round",
+					r.Config.Code,
+					r.Config.AuthorName,
+				)
+
 				r.ChangeState(StateKindPlaying)
 				if err := r.playing(ctx); err != nil {
 					if !errors.Is(err, ContextFatalClosedErr) {
 						logger.Error(fmt.Errorf("playing: %v", err))
 						r.sendCrashMsg()
-						r.cancel()
+						r.Stop()
 					}
 				}
 			}
@@ -345,7 +355,22 @@ func (r *Session) shutdown(ctx context.Context) {
 	logger := logging.FromContext(ctx).Named("match.shutdown")
 	if time.Since(r.CreatedAt) <= r.timeout {
 		if r.getState() != StateKindFinished {
-			r.syncBroadcast(resource.TextMatchWarnMsg)
+			r.mtx.RLock()
+		OuterLoop:
+			for _, player := range r.Players {
+				player := player
+				if !player.IsPlaying() || player.Offline {
+					continue OuterLoop
+				}
+
+				msg := tgbotapi.NewMessage(player.ChatId, resource.TextMatchWarnMsg)
+				msg.ParseMode = tgbotapi.ModeMarkdown
+				if _, err := r.tg.Send(msg); err != nil {
+					continue OuterLoop
+				}
+			}
+
+			r.mtx.RUnlock()
 
 			if err := r.warnFn(r); err != nil {
 				logger.Errorf("done function: %v", err)
@@ -363,6 +388,7 @@ func (r *Session) shutdown(ctx context.Context) {
 }
 
 func (r *Session) playing(ctx context.Context) error {
+	logger := logging.FromContext(ctx).Named("match.Session.playing")
 PlayerLoop:
 	for {
 		// choosing the next player
@@ -371,7 +397,7 @@ PlayerLoop:
 			r.stateCh <- StateKindProcessing
 			return nil
 		}
-
+		logger.Infof("Game session %d, author: %s, next playing %s", r.Config.Code, r.Config.AuthorName, player.User.FirstName)
 		rate := &model.Rate{}
 
 		r.currRoundSeconds = r.Config.RoundTime
@@ -384,6 +410,7 @@ PlayerLoop:
 		util.Sleep(2 * time.Second)
 
 		if r.Config.IsBloops() {
+			logger.Infof("Game session %d, author: %s, checking bloops", r.Config.Code, r.Config.AuthorName)
 			msg := tgbotapi.NewMessage(player.ChatId, "Проверяем, выпадет ли блюпс?")
 			if _, err := r.tg.Send(msg); err != nil {
 				return fmt.Errorf("send msg: %v", err)
@@ -395,6 +422,12 @@ PlayerLoop:
 			}
 
 			if r.dice() > 3 {
+				logger.Infof(
+					"Game session %d, author: %s, bloops dropped for %s",
+					r.Config.Code,
+					r.Config.AuthorName,
+					player.User.FirstName,
+				)
 				rate.Bloops = true
 				msg := tgbotapi.NewDeleteMessage(player.ChatId, messageId)
 				if _, err := r.tg.Send(msg); err != nil {
@@ -410,7 +443,13 @@ PlayerLoop:
 				if err := r.sendDroppedBloopsesMsg(player, bloops); err != nil {
 					return fmt.Errorf("send bloopsbot: %v", err)
 				}
-
+				logger.Infof(
+					"Game session %d, author: %s, bloops is %s for player %s",
+					r.Config.Code,
+					r.Config.AuthorName,
+					bloops.Name,
+					player.User.FirstName,
+				)
 				timerFatal := time.NewTimer(defaultInactiveFatalTime * time.Second)
 				timerWarn := time.NewTimer(defaultInactiveWarnTime * time.Second)
 			ChallengeNext:
@@ -452,7 +491,12 @@ PlayerLoop:
 				util.Sleep(1 * time.Second)
 			}
 		}
-
+		logger.Infof(
+			"Game session %d, author: %s, sending round start msg for player %s",
+			r.Config.Code,
+			r.Config.AuthorName,
+			player.User.FirstName,
+		)
 		// send start button and register start button handler
 		if err := r.sendStartMsg(player); err != nil {
 			return fmt.Errorf("send start msg: %v", err)
@@ -491,21 +535,54 @@ PlayerLoop:
 				}
 			}
 		}
-
+		logger.Infof(
+			"Game session %d, author: %s, player %s ready",
+			r.Config.Code,
+			r.Config.AuthorName,
+			player.User.FirstName,
+		)
 		//  generating the letter that the words begin with
 		if err := r.sendLetterMsg(player); err != nil {
 			return fmt.Errorf("generate and send letter msg: %v", err)
 		}
 
+		logger.Infof(
+			"Game session %d, author: %s, sending letter for player %s",
+			r.Config.Code,
+			r.Config.AuthorName,
+			player.User.FirstName,
+		)
+
 		if err := r.sendReadyMsg(player); err != nil {
 			return fmt.Errorf("send ready msg: %v", err)
 		}
+
+		logger.Infof(
+			"Game session %d, author: %s, sending ready set go for player %s",
+			r.Config.Code,
+			r.Config.AuthorName,
+			player.User.FirstName,
+		)
+
+		logger.Infof(
+			"Game session %d, author: %s, ticker start for player %s",
+			r.Config.Code,
+			r.Config.AuthorName,
+			player.User.FirstName,
+		)
 
 		// create ticker. Update player timer every 1sec
 		secs, timeSince, err := r.ticker(ctx, player)
 		if err != nil {
 			return fmt.Errorf("ticker: %w", err)
 		}
+
+		logger.Infof(
+			"Game session %d, author: %s, player %s push stop or time over",
+			r.Config.Code,
+			r.Config.AuthorName,
+			player.User.FirstName,
+		)
 
 		if secs > maxDefaultRoundScore {
 			secs = maxDefaultRoundScore
@@ -519,9 +596,20 @@ PlayerLoop:
 		rate.Duration = time.Since(timeSince)
 		rate.Points = secs + reward
 		rate.Completed = secs > 0
-
+		logger.Infof(
+			"Game session %d, author: %s, player get a %d points",
+			r.Config.Code,
+			r.Config.AuthorName,
+			rate.Points,
+		)
 		// vote features
 		if r.Config.Vote {
+			logger.Infof(
+				"Game session %d, author: %s, vote starting for player %s",
+				r.Config.Code,
+				r.Config.AuthorName,
+				player.User.FirstName,
+			)
 			if err := r.votes(ctx, rate); err != nil {
 				return fmt.Errorf("votes: %w", err)
 			}
@@ -535,9 +623,20 @@ PlayerLoop:
 		player.Rates = append(player.Rates, rate)
 		r.mtx.Unlock()
 
+		logger.Infof(
+			"Game session %d, author: %s, rate append for player %s",
+			r.Config.Code,
+			r.Config.AuthorName,
+			player.User.FirstName,
+		)
 		// send data on the round players
 		r.sndCh <- tgbotapi.NewMessage(player.ChatId, fmt.Sprintf(resource.TextStopPlayerRoundMsg, rate.Points))
-
+		logger.Infof(
+			"Game session %d, author: %s, round closed for player %s",
+			r.Config.Code,
+			r.Config.AuthorName,
+			player.User.FirstName,
+		)
 		r.asyncBroadcast(r.renderPlayerGetPoints(player, rate.Points), player.UserId)
 		util.Sleep(5 * time.Second)
 	}

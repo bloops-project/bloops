@@ -224,6 +224,7 @@ func (bs *Session) loop(ctx context.Context) {
 		case <-bs.messageCh:
 			switch bs.state.curr() {
 			case stateKindCategories:
+				logger.Infof("Building session, sending categories, author %s", bs.AuthorName)
 				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextChooseCategories)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderInlineCategories())
 				output, err := bs.tg.Send(msg)
@@ -232,6 +233,7 @@ func (bs *Session) loop(ctx context.Context) {
 				}
 				bs.messageId = output.MessageID
 			case stateKindRoundsNum:
+				logger.Infof("Building session, sending rounds number, author %s", bs.AuthorName)
 				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextChooseRoundsNum)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderRoundsNum())
 				output, err := bs.tg.Send(msg)
@@ -240,6 +242,7 @@ func (bs *Session) loop(ctx context.Context) {
 				}
 				bs.messageId = output.MessageID
 			case stateKindRoundTime:
+				logger.Infof("Building session, sending rounds time, author %s", bs.AuthorName)
 				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextRoundTime)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderRoundsTime())
 				output, err := bs.tg.Send(msg)
@@ -248,6 +251,7 @@ func (bs *Session) loop(ctx context.Context) {
 				}
 				bs.messageId = output.MessageID
 			case stateKindLetters:
+				logger.Infof("Building session, sending letters, author %s", bs.AuthorName)
 				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextDeleteComplexLetters)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderInlineLetters())
 				output, err := bs.tg.Send(msg)
@@ -256,6 +260,7 @@ func (bs *Session) loop(ctx context.Context) {
 				}
 				bs.messageId = output.MessageID
 			case stateKindBloops:
+				logger.Infof("Building session, sending bloopses, author %s", bs.AuthorName)
 				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextBloopsAllowed)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderInlineBloops())
 				output, err := bs.tg.Send(msg)
@@ -264,6 +269,7 @@ func (bs *Session) loop(ctx context.Context) {
 				}
 				bs.messageId = output.MessageID
 			case stateKindVote:
+				logger.Infof("Building session, sending vote, author %s", bs.AuthorName)
 				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextVoteAllowed)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderInlineVote())
 				output, err := bs.tg.Send(msg)
@@ -272,6 +278,7 @@ func (bs *Session) loop(ctx context.Context) {
 				}
 				bs.messageId = output.MessageID
 			case stateKindDone:
+				logger.Infof("Building session, sending done action, author %s", bs.AuthorName)
 				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextConfigurationDone)
 				msg.ReplyMarkup = bs.menuInlineButtons(tgbotapi.NewInlineKeyboardMarkup())
 				output, err := bs.tg.Send(msg)

@@ -202,7 +202,7 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 					return
 				}
 
-				if err := m.route(u, update); err != nil {
+				if err := m.route(ctx, u, update); err != nil {
 					if !errors.Is(err, match.ValidationErr) {
 						logger.Errorf("handle command query: %v", err)
 					}
@@ -210,7 +210,7 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 			}
 
 			if update.CallbackQuery != nil {
-				if err := m.handleCallbackQuery(u, update); err != nil {
+				if err := m.handleCallbackQuery(ctx, u, update); err != nil {
 					logger.Errorf("handle commandCbHandler query: %v", err)
 				}
 			}
@@ -220,9 +220,11 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 	}
 }
 
-func (m *manager) route(u userModel.User, upd tgbotapi.Update) error {
-	if handler, ok := m.commandHandler(upd.Message.Text); ok {
+func (m *manager) route(ctx context.Context, u userModel.User, upd tgbotapi.Update) error {
+	logger := logging.FromContext(ctx).Named("bloopsbot.manager.route")
+	logger.Infof("Command received from user %s, command %s", u.FirstName, upd.Message.Text)
 
+	if handler, ok := m.commandHandler(upd.Message.Text); ok {
 		if err := handler.execute(u, upd.Message.Chat.ID); err != nil {
 			return fmt.Errorf("execute command text handler: %v", err)
 		}
@@ -257,7 +259,15 @@ func (m *manager) route(u userModel.User, upd tgbotapi.Update) error {
 	return nil
 }
 
-func (m *manager) handleCallbackQuery(u userModel.User, upd tgbotapi.Update) error {
+func (m *manager) handleCallbackQuery(ctx context.Context, u userModel.User, upd tgbotapi.Update) error {
+	logger := logging.FromContext(ctx).Named("bloopsbot.manager.handlerCallbackQuery")
+	logger.Infof(
+		"Command received from user %s, command %s, data %s",
+		u.FirstName,
+		upd.CallbackQuery.Message,
+		upd.CallbackQuery.Data,
+	)
+
 	if session, ok := m.userBuildingSession(u.Id); ok {
 		if err := session.Execute(upd); err != nil {
 			return fmt.Errorf("execute building cb: %v", err)
@@ -604,7 +614,7 @@ func (m *manager) deserialize() error {
 	}
 
 	for _, session := range m.matchSessions {
-		session.MoveState(match.StateKindPlaying)
+		session.MoveState(session.State)
 	}
 
 	m.mtx.Unlock()
