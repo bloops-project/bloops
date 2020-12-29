@@ -1,4 +1,4 @@
-# Bloopsbot - telegram bot for offline quizzes.
+# Bloopsbot - offline quizzes
 ```
 ___.   .__                                 ___.           __   
 \_ |__ |  |   ____   ____ ______  ______   \_ |__   _____/  |_ 
@@ -9,7 +9,8 @@ ___.   .__                                 ___.           __
 ```
 
 ## What is bloopsbot?
-What is bloopsbot? 🤖 This is a telegram bot created to organize offline games similar to tiktok quizzes for local offline groups
+Well, this is a telegram bot 🤖 for organizing quizzes similar to quizzes in tiktok, where you need to
+30 seconds name a few words from the proposed categories at a random letter. The bot is organizing, counting points, and you play with your friends
 
 ## Location
 You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)
@@ -18,22 +19,23 @@ You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)
 🎄🎄🎄 The project was created for playing with the family during the holidays. This is just fun
 
 ## Features
-* 🕹️ Offline format, well suited for activities with friends
-* 🎲 Quiz games - in 30 seconds, you need to name one word from several topic starting with a certain letter
-* 💎 Bloops - you can add additional tasks that diversify the process
-* 👽 Players have profiles, you can see your statistics
-* 👨‍ You can use a CLI or deploy docker container
-* 💻 Key-value embedded db, when moving the application to another location, you just need to copy the db file and run the application
+* 🕹️ Offline format for small get-togethers with friends or parties
+* 🎲 Quiz format with clear rules, in 30 seconds you need to name a few words for the dropped out letter
+* 💎 Bloops are additional tasks that you can get, maybe they will amuse you or increase the number of points
+* 👽 Players have profiles, simple statistics are kept
+* 👨 Simple interface, you can create a game in a few steps and customize it for yourself, for example, add or remove blues, vote or enable your categories
+* 🖥️‍ You can use a CLI or deploy docker container
+* 👨‍🔬🥽🧪 Key-value embedded db, when moving the application to another location, you just need to copy the db file and run the application
 * 🚀 Without complex configuration, compiled and started
 
 ## Play
 🚀 [PLAY](https://t.me/bloops_bot)
 
-## Site
-🖥🖱🌍 [bloops.fun](https://bloops.fun)
-
 ## Language and localization
 No😔, only in Russian
+
+## Site
+🖥🖱🌍 [bloops.fun](https://bloops.fun)
 
 ## Development
 This is shitty code, I know there is no testing in it, but this is my little hackathon to get it done quickly for the holidays
