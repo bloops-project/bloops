@@ -398,7 +398,6 @@ func (m *manager) matchDoneFn(session *match.Session) error {
 		delete(m.userMatchSessions, player.UserId)
 	}
 
-	session.Stop()
 	delete(m.matchSessions, session.Code)
 
 	return nil
