@@ -263,8 +263,9 @@ func (r *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 		if err := cb(query); err != nil {
 			return fmt.Errorf("msgCallback: %v", err)
 		}
+		return nil
 	}
-	return nil
+	return fmt.Errorf("match.Session: msgCallback not found")
 }
 
 func (r *Session) registerCbHandler(messageId int, fn QueryCallbackHandler) {
@@ -388,7 +389,7 @@ PlayerLoop:
 
 			messageId, err := r.checkBloopsSendMsg(player)
 			if err != nil {
-				return err
+				return fmt.Errorf("send ready set go for bloopses: %v", err)
 			}
 
 			if r.dice() > 3 {
@@ -420,7 +421,7 @@ PlayerLoop:
 					case <-timerWarn.C:
 						timerWarn.Stop()
 						r.syncBroadcast(fmt.Sprintf(
-							"Игрок %s должен нажать на кнопку Далее в течение %d сек",
+							"Игрок %s должен нажать на кнопку Понятно в течение %d сек",
 							player.FormatFirstName(),
 							defaultInactiveFatalTime-defaultInactiveWarnTime,
 						))
