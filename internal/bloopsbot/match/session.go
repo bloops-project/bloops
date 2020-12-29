@@ -648,6 +648,7 @@ PlayerLoop:
 			r.Config.AuthorName,
 			player.User.FirstName,
 		)
+		util.Sleep(2 * time.Second)
 		// send data on the round players
 		r.sndCh <- tgbotapi.NewMessage(player.ChatId, fmt.Sprintf(resource.TextStopPlayerRoundMsg, rate.Points))
 		logger.Infof(

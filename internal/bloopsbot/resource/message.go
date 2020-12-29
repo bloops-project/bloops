@@ -88,7 +88,7 @@ var (
 	TextThumbUp                            = emoji.ThumbsUp.String()
 	TextThumbDown                          = emoji.ThumbsDown.String()
 	TextLeaderboardHeader                  = "*Результаты игры*\n\n"
-	TextRoundFavoriteMsg                   = emoji.ChequeredFlag.String() + emoji.ChequeredFlag.String() + emoji.ChequeredFlag.String() + " Раунд %d завершен"
+	TextRoundFavoriteMsg                   = emoji.ChequeredFlag.String() + " Раунд %d завершен"
 	TextClickStartBtnMsg                   = emoji.ChequeredFlag.String() + " Нажми кнопку, когда будешь готов"
 	TextStartBtnData                       = "Я готов!"
 	TextStopBtnData                        = "Стоп"
