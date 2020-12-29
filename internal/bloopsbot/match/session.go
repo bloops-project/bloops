@@ -602,6 +602,7 @@ PlayerLoop:
 			r.Config.AuthorName,
 			rate.Points,
 		)
+
 		// vote features
 		if r.Config.Vote {
 			logger.Infof(
@@ -610,8 +611,18 @@ PlayerLoop:
 				r.Config.AuthorName,
 				player.User.FirstName,
 			)
-			if err := r.votes(ctx, rate); err != nil {
-				return fmt.Errorf("votes: %w", err)
+			if rate.Points <= 0 {
+				logger.Infof(
+					"Game session %d, author: %s, points < 0, vote cancelled %s",
+					r.Config.Code,
+					r.Config.AuthorName,
+					player.User.FirstName,
+				)
+				r.syncBroadcast("Игрок не успел справиться с заданием, голосование отменено")
+			} else {
+				if err := r.votes(ctx, rate); err != nil {
+					return fmt.Errorf("votes: %w", err)
+				}
 			}
 		}
 
@@ -658,11 +669,10 @@ func (r *Session) ticker(ctx context.Context, player *model.Player) (int, time.T
 			}
 
 			r.stopCh <- struct{}{}
+			r.mtx.Lock()
+			defer r.mtx.Unlock()
+			delete(r.msgCallback, messageId)
 		}
-
-		r.mtx.Lock()
-		defer r.mtx.Unlock()
-		delete(r.msgCallback, messageId)
 
 		return nil
 	})
