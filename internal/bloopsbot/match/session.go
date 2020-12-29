@@ -120,14 +120,6 @@ type Session struct {
 }
 
 func (r *Session) Stop() {
-	defer func() {
-		close(r.startCh)
-		close(r.passCh)
-		close(r.stopCh)
-		close(r.sndCh)
-		close(r.stateCh)
-	}()
-
 	r.cancel()
 }
 
@@ -137,9 +129,7 @@ func (r *Session) Run(ctx context.Context) {
 	logger := logging.FromContext(ctx)
 	r.sema.Do(func() {
 		go r.loop(ctx)
-		for i := 0; i < runtime.NumCPU(); i++ {
-			go r.sendingPool(ctx)
-		}
+		go r.sendingPool(ctx)
 	})
 	logger.Infof("The game session created, code: %d, author: %s", r.Config.Code, r.Config.AuthorName)
 }
@@ -338,7 +328,18 @@ func (r *Session) loop(ctx context.Context) {
 }
 
 func (r *Session) sendingPool(ctx context.Context) {
-	logger := logging.FromContext(ctx).Named("match.sendingPool")
+	defer close(r.sndCh)
+	wg := &sync.WaitGroup{}
+	wg.Add(runtime.NumCPU() / 2)
+	for i := 0; i < runtime.NumCPU()/2; i++ {
+		r.sendingWorker(ctx, wg)
+	}
+	wg.Wait()
+}
+
+func (r *Session) sendingWorker(ctx context.Context, wg *sync.WaitGroup) {
+	logger := logging.FromContext(ctx).Named("match.sendingWorker")
+	defer wg.Done()
 	for {
 		select {
 		case msg := <-r.sndCh:
@@ -353,6 +354,13 @@ func (r *Session) sendingPool(ctx context.Context) {
 
 func (r *Session) shutdown(ctx context.Context) {
 	logger := logging.FromContext(ctx).Named("match.shutdown")
+	defer func() {
+		close(r.startCh)
+		close(r.passCh)
+		close(r.stopCh)
+		close(r.stateCh)
+	}()
+
 	if time.Since(r.CreatedAt) <= r.timeout {
 		if r.getState() != StateKindFinished {
 			r.mtx.RLock()
