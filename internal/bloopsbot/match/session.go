@@ -345,6 +345,8 @@ func (r *Session) shutdown(ctx context.Context) {
 	logger := logging.FromContext(ctx).Named("match.shutdown")
 	if time.Since(r.CreatedAt) <= r.timeout {
 		if r.getState() != StateKindFinished {
+			r.syncBroadcast(resource.TextMatchWarnMsg)
+
 			if err := r.warnFn(r); err != nil {
 				logger.Errorf("done function: %v", err)
 			}

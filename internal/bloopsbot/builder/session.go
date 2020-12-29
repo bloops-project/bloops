@@ -288,7 +288,7 @@ func (bs *Session) shutdown(ctx context.Context) bool {
 	logger := logging.FromContext(ctx)
 	if time.Since(bs.CreatedAt) <= bs.timeout {
 		if bs.state.state != stateKindDone {
-			if _, err := bs.tg.Send(tgbotapi.NewMessage(bs.AuthorId, resource.TextWarnMsg)); err != nil {
+			if _, err := bs.tg.Send(tgbotapi.NewMessage(bs.AuthorId, resource.TextBuilderWarnMsg)); err != nil {
 				logger.Errorf("send msg: %v", err)
 			}
 
