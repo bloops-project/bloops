@@ -861,6 +861,7 @@ func (r *Session) RemovePlayer(userId int64) {
 		r.removePlayer(userId)
 		if r.AlivePlayersLen() == 0 && r.getState() == StateKindFinished {
 			r.Stop()
+			return
 		}
 		r.passCh <- player.UserId
 	}
