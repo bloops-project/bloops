@@ -228,7 +228,7 @@ func (r *Session) renderPlayerGetPoints(player *model.Player, points int) string
 	buf.WriteString(player.FormatFirstName())
 	buf.WriteString(" набирает ")
 	buf.WriteString(strconv.Itoa(points))
-	buf.WriteString("очков")
+	buf.WriteString(" очков")
 
 	return buf.String()
 }

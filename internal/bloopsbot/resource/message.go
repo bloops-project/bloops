@@ -26,7 +26,7 @@ var (
 	TextSettingsMsg = emoji.Gear.String() + " Настраиваем параметры игры"
 
 	TextGreetingMsg = emoji.ChristmasTree.String() + emoji.ChristmasTree.String() + emoji.ChristmasTree.String() + "Привет, %s\n\n" +
-		"Это @blooopbot " + emoji.Robot.String() + " - бот, для игры в небольшие викторины, где участники должны за " + emoji.Stopwatch.String() + " 30сек " +
+		"Это " + `@blooops\_bot` + emoji.Robot.String() + " - бот, для игры в небольшие викторины, где участники должны за " + emoji.Stopwatch.String() + " 30сек " +
 		"назвать по одному слову из нескольких категорий, начинающихся на определенную букву\n\n" +
 		"Бот" + emoji.Robot.String() + " предназначен для ведения игр в оффлайне." +
 		" Он подсчитывает очки, генерирует буквы, создает лидерборды, и задает правила, а вы играете!" + emoji.Unicorn.String() + "\n\n" +

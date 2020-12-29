@@ -47,8 +47,9 @@ func (p *Player) FormatFirstName() string {
 
 	buf.WriteString(p.User.FirstName)
 	if !p.Offline && p.User.Stars > 0 {
-		buf.WriteString(emoji.Star.String())
+		buf.WriteString(" - ")
 		buf.WriteString(strconv.Itoa(p.User.Stars))
+		buf.WriteString(emoji.Star.String())
 	}
 
 	return buf.String()
