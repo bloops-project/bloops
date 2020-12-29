@@ -102,7 +102,7 @@ var (
 	TextPlayerJoinedGameMsg                = "Игрок %s присоединился к игре"
 	TextStopPlayerRoundMsg                 = "Завершено! Ты набрал %d очков!"
 	TextGameStarted                        = "Игра началась!"
-	TextValidationRequiresMoreOnePlayerMsg = "Чтобы начать игру необходимо %d игроков"
+	TextValidationRequiresMoreOnePlayerMsg = "Чтобы начать игру необходимо %d игроков. Ты можешь добавить виртуального игрока командой /add \n\nПодробнее для чего нужна команда /add можно посмотреть в /rules"
 	TextVoteMsg                            = "Голосование, игрок всё правильно назвал?"
 	TextBroadcastCrashMsg                  = "Из-за ошибки в работе сервиса игра была аварийно завершена, поробуйте создать игру заново"
 	TextStopButton                         = "Нажми Стоп, когда закончишь"
