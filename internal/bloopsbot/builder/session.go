@@ -215,7 +215,7 @@ func (bs *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 }
 
 func (bs *Session) loop(ctx context.Context) {
-	logger := logging.FromContext(ctx).Named("builder.loop")
+	logger := logging.FromContext(ctx).With("builder.loop")
 	defer bs.shutdown(ctx)
 	for {
 		select {

@@ -182,7 +182,7 @@ func (m *manager) Run(ctx context.Context) error {
 
 func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.UpdatesChannel) {
 	defer wg.Done()
-	logger := logging.FromContext(ctx).Named("manager.pool")
+	logger := logging.FromContext(ctx).With("manager.pool")
 	for {
 		select {
 		case update := <-updCh:
@@ -221,7 +221,7 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 }
 
 func (m *manager) route(ctx context.Context, u userModel.User, upd tgbotapi.Update) error {
-	logger := logging.FromContext(ctx).Named("bloopsbot.manager.route")
+	logger := logging.FromContext(ctx).With("bloopsbot.manager.route")
 	logger.Infof("Command received from user %s, command %s", u.FirstName, upd.Message.Text)
 
 	if handler, ok := m.commandHandler(upd.Message.Text); ok {
@@ -260,7 +260,7 @@ func (m *manager) route(ctx context.Context, u userModel.User, upd tgbotapi.Upda
 }
 
 func (m *manager) handleCallbackQuery(ctx context.Context, u userModel.User, upd tgbotapi.Update) error {
-	logger := logging.FromContext(ctx).Named("bloopsbot.manager.handlerCallbackQuery")
+	logger := logging.FromContext(ctx).With("bloopsbot.manager.handlerCallbackQuery")
 	logger.Infof(
 		"Command received from user %s, command %s, data %s",
 		u.FirstName,
