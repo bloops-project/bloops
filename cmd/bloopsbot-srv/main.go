@@ -15,12 +15,31 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/valyala/fastrand"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"time"
 )
 
 func main() {
+	ss := resource.Bloopses
+	fmt.Println(len(ss))
+	sss := []uint32{}
+	for i := 0; i < 10_000_000; i++ {
+		sss = append(sss, fastrand.Uint32n(1000))
+	}
+	t := time.Now()
+	for i := range sss {
+		if i == 100 {
+			sss = append(sss[:i], sss[i+1:]...)
+			//sss[i] = sss[len(sss)-1]
+			//sss = sss[:len(sss)-1]
+		}
+	}
+	fmt.Println(time.Since(t))
+	fmt.Println("")
+	fmt.Println(len(sss))
 	_, _ = fmt.Fprint(os.Stdout, resource.Graffiti)
 	_, _ = fmt.Fprintf(
 		os.Stdout,

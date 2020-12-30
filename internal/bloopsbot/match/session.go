@@ -12,6 +12,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/valyala/fastrand"
 	"math"
+	"math/rand"
 	"runtime"
 	"sort"
 	"sync"
@@ -34,7 +35,7 @@ const (
 	defaultInactiveVoteTime  = 30
 )
 
-type QueryCallbackHandler func(query *tgbotapi.CallbackQuery) error
+type QueryCallbackHandlerFn func(query *tgbotapi.CallbackQuery) error
 
 const (
 	StateKindWaiting uint8 = iota + 1
@@ -78,7 +79,7 @@ func NewSession(config Config) *Session {
 		stopCh:      make(chan struct{}, 1),
 		passCh:      make(chan int64, 1),
 		State:       StateKindWaiting,
-		msgCallback: map[int]QueryCallbackHandler{},
+		msgCallback: map[int]QueryCallbackHandlerFn{},
 		doneFn:      config.DoneFn,
 		warnFn:      config.WarnFn,
 		timeout:     config.Timeout,
@@ -97,7 +98,7 @@ type Session struct {
 
 	tg          *tgbotapi.BotAPI
 	stateCh     chan uint8
-	msgCallback map[int]QueryCallbackHandler
+	msgCallback map[int]QueryCallbackHandlerFn
 
 	CurrRoundIdx int
 	State        uint8
@@ -258,13 +259,13 @@ func (r *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 	return fmt.Errorf("match.Session: msgCallback not found")
 }
 
-func (r *Session) registerCbHandler(messageId int, fn QueryCallbackHandler) {
+func (r *Session) registerCbHandler(messageId int, fn QueryCallbackHandlerFn) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	r.msgCallback[messageId] = fn
 }
 
-func (r *Session) cbHandler(messageId int) (QueryCallbackHandler, bool) {
+func (r *Session) cbHandler(messageId int) (QueryCallbackHandlerFn, bool) {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 	cb, ok := r.msgCallback[messageId]
@@ -416,7 +417,6 @@ PlayerLoop:
 		r.syncBroadcast(nextPlayerMsg)
 
 		util.Sleep(2 * time.Second)
-
 		if r.Config.IsBloops() {
 			logger.Infof("Game session %d, author: %s, checking bloops", r.Config.Code, r.Config.AuthorName)
 			msg := tgbotapi.NewMessage(player.ChatId, "Проверяем, выпадет ли блюпс?")
@@ -429,7 +429,7 @@ PlayerLoop:
 				return fmt.Errorf("send ready set go for bloopses: %v", err)
 			}
 
-			if r.dice() > 3 {
+			if r.dice() {
 				logger.Infof(
 					"Game session %d, author: %s, bloops dropped for %s",
 					r.Config.Code,
@@ -442,7 +442,7 @@ PlayerLoop:
 					return fmt.Errorf("send msg: %v", err)
 				}
 
-				nextBloops := r.randWeightedBloops()
+				nextBloops, _ := r.randBloopses()
 				r.bloopsPoints = nextBloops.Points
 				r.currRoundSeconds = r.Config.RoundTime + nextBloops.Seconds
 				bloops := &nextBloops
@@ -543,6 +543,7 @@ PlayerLoop:
 				}
 			}
 		}
+
 		logger.Infof(
 			"Game session %d, author: %s, player %s ready",
 			r.Config.Code,
@@ -640,6 +641,16 @@ PlayerLoop:
 
 		r.mtx.Lock()
 		player.Rates = append(player.Rates, rate)
+
+		//  remove the bloops that played
+		if rate.Points > 0 && rate.BloopsName != "" {
+			for idx, bloops := range r.Config.Bloopses {
+				if bloops.Name == rate.BloopsName {
+					r.Config.Bloopses = append(r.Config.Bloopses[:idx], r.Config.Bloopses[idx+1:]...)
+				}
+			}
+		}
+
 		r.mtx.Unlock()
 
 		logger.Infof(
@@ -913,11 +924,26 @@ func (r *Session) thumbDown() {
 	r.activeVote.pub <- struct{}{}
 }
 
-func (r *Session) dice() int {
-	return (int)(fastrand.Uint32n(6) + 1)
+func (r *Session) dice() bool {
+	return (int)(fastrand.Uint32n(10)+1) < 7
 }
 
-func (r *Session) randWeightedBloops() resource.Bloops {
+func (r *Session) randBloopses() (resource.Bloops, bool) {
+	if len(r.Config.Bloopses) == 0 {
+		return resource.Bloops{}, false
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < 3; i++ {
+		rand.Shuffle(len(r.Config.Bloopses), func(i, j int) {
+			r.Config.Bloopses[i], r.Config.Bloopses[j] = r.Config.Bloopses[j], r.Config.Bloopses[i]
+		})
+	}
+
+	return r.Config.Bloopses[0], true
+}
+
+func (r *Session) randWeightedBloopses() resource.Bloops {
 	var max float64 = -1
 	var result resource.Bloops
 	var mn, mx uint32
