@@ -1,6 +1,6 @@
 # Bloopsbot - offline quizzes
 
-## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/bloops_logo_short.png" width="400">
+## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/bloops_logo_short_trans.png" width="400">
 
 ## What is bloopsbot?
 This is a telegram bot 🤖 for organizing quizzes similar to quizzes in tiktok, where you need to
