@@ -8,7 +8,7 @@ ___.   .__                                 ___.           __
      \/                   |__|       \/_____/   \/                                                                          
 ```
 
-## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/bloops_logo.png" width="400">
+## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/bloops_logo_short.png" width="400">
 
 ## What is bloopsbot?
 This is a telegram bot 🤖 for organizing quizzes similar to quizzes in tiktok, where you need to
