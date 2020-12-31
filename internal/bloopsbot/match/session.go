@@ -273,7 +273,7 @@ func (r *Session) cbHandler(messageId int) (QueryCallbackHandlerFn, bool) {
 }
 
 func (r *Session) loop(ctx context.Context) {
-	logger := logging.FromContext(ctx).With("match.loop")
+	logger := logging.FromContext(ctx).Named("match.loop")
 	defer r.shutdown(ctx)
 
 	for {
@@ -339,7 +339,7 @@ func (r *Session) sendingPool(ctx context.Context) {
 }
 
 func (r *Session) sendingWorker(ctx context.Context, wg *sync.WaitGroup) {
-	logger := logging.FromContext(ctx).With("match.sendingWorker")
+	logger := logging.FromContext(ctx).Named("match.sendingWorker")
 	defer wg.Done()
 	for {
 		select {
@@ -354,7 +354,7 @@ func (r *Session) sendingWorker(ctx context.Context, wg *sync.WaitGroup) {
 }
 
 func (r *Session) shutdown(ctx context.Context) {
-	logger := logging.FromContext(ctx).With("match.shutdown")
+	logger := logging.FromContext(ctx).Named("match.shutdown")
 	defer func() {
 		close(r.startCh)
 		close(r.passCh)
@@ -397,7 +397,7 @@ func (r *Session) shutdown(ctx context.Context) {
 }
 
 func (r *Session) playing(ctx context.Context) error {
-	logger := logging.FromContext(ctx).With("match.Session.playing")
+	logger := logging.FromContext(ctx).Named("match.Session.playing")
 PlayerLoop:
 	for {
 		// choosing the next player

@@ -32,7 +32,7 @@ func renderProfile(u userModel.User, stat statModel.AggregationStat) string {
 	buf.WriteString(emoji.GemStone.String() + " Блюпсов открыто: ")
 	buf.WriteString(strconv.Itoa(len(stat.Bloops)))
 	buf.WriteString("/")
-	buf.WriteString(strconv.Itoa(len(resource.Bloopses)))
+	buf.WriteString(strconv.Itoa(len(resource.BloopsKeys)))
 	buf.WriteString("\n")
 	buf.WriteString(emoji.Stopwatch.String())
 	buf.WriteString(" Лучшее время раунда: ")

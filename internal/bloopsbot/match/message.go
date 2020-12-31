@@ -441,7 +441,7 @@ func (r *Session) sendChoiceBloopsMsg(ctx context.Context, player *model.Player)
 
 	mtx := sync.RWMutex{}
 	r.registerCbHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
-		logger := logging.FromContext(ctx).With("match.sendChoiceBloopsMsg")
+		logger := logging.FromContext(ctx).Named("match.sendChoiceBloopsMsg")
 		defer func() {
 			if opened.equal(attempts) {
 				util.Sleep(3 * time.Second)
