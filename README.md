@@ -1,12 +1,4 @@
 # Bloopsbot - offline quizzes
-```
-___.   .__                                 ___.           __   
-\_ |__ |  |   ____   ____ ______  ______   \_ |__   _____/  |_ 
- | __ \|  |  /  _ \ /  _ \\____ \/  ___/    | __ \ /  _ \   __\
- | \_\ \  |_(  <_> |  <_> )  |_> >___ \     | \_\ (  <_> )  |  
- |___  /____/\____/ \____/|   __/____  >____|___  /\____/|__|  
-     \/                   |__|       \/_____/   \/                                                                          
-```
 
 ## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/bloops_logo_short.png" width="400">
 
