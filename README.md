@@ -6,6 +6,8 @@
 This is a telegram bot 🤖 for organizing quizzes similar to quizzes in tiktok, where you need to
 30 seconds name a few words from the proposed categories at a random letter. The bot is organizing, counting points, and you play with your friends
 
+## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/bloops_logo_short_trans.png" width="400">
+
 ## Location
 You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)
 

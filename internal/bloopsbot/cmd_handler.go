@@ -13,7 +13,8 @@ import (
 
 func (m *manager) handleStartCommand(u userModel.User, chatId int64) error {
 	{
-		msg := tgbotapi.NewStickerShare(chatId, resource.BloopsStickerBlockFinished)
+		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf(resource.TextGreetingMsg, u.FirstName))
+		msg.ParseMode = tgbotapi.ModeMarkdown
 		_, mSessExist := m.userMatchSession(u.Id)
 		_, bSessExist := m.userBuildingSession(u.Id)
 		if !mSessExist && !bSessExist {
