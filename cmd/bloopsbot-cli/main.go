@@ -32,14 +32,20 @@ func main() {
 
 	ctx, done := shutdown.New()
 	defer done()
-	logger := logging.FromContext(ctx)
-	if err := realMain(ctx, done); err != nil {
+
+	config := bloopsbot.Config{}
+	if err := envconfig.Process("", &config); err != nil {
+		logging.DefaultLogger().Fatalf("processing the config: %v", err)
+	}
+
+	logger := logging.NewLogger(config.Debug).With("version", resource.ProjectVersion)
+	if err := realMain(ctx, config, done); err != nil {
 		logger.Fatalf("main.realMain: %v", err)
 	}
 }
 
-func realMain(ctx context.Context, done func()) error {
-	logger := logging.FromContext(ctx)
+func realMain(ctx context.Context, config bloopsbot.Config, done func()) error {
+	logger := logging.FromContext(ctx).Named("main.realMain")
 	_, _ = fmt.Fprint(os.Stdout, resource.Graffiti)
 	_, _ = fmt.Fprintf(
 		os.Stdout,
@@ -49,11 +55,6 @@ func realMain(ctx context.Context, done func()) error {
 		resource.TgBloopUrl,
 		resource.GithubBloopUrl,
 	)
-
-	config := bloopsbot.Config{}
-	if err := envconfig.Process("", &config); err != nil {
-		logger.Fatalf("processing the config: %v", err)
-	}
 
 	var token string
 	fmt.Println("Enter your bot token:")

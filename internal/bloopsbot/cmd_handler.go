@@ -11,6 +11,23 @@ import (
 	"strings"
 )
 
+func (m *manager) handleStartCommand(u userModel.User, chatId int64) error {
+	{
+		msg := tgbotapi.NewStickerShare(chatId, resource.BloopsStickerBlockFinished)
+		_, mSessExist := m.userMatchSession(u.Id)
+		_, bSessExist := m.userBuildingSession(u.Id)
+		if !mSessExist && !bSessExist {
+			msg.ReplyMarkup = resource.CommonButtons
+		}
+
+		if _, err := m.tg.Send(msg); err != nil {
+			return fmt.Errorf("send msg: %v", err)
+		}
+	}
+
+	return nil
+}
+
 func (m *manager) handleBanCommand(u userModel.User, chatId int64) error {
 	msg := tgbotapi.NewMessage(chatId, resource.TextBanMsg)
 	msg.ReplyMarkup = resource.CommonButtons

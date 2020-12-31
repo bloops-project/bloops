@@ -2,12 +2,12 @@ package resource
 
 import "github.com/valyala/fastrand"
 
-type Sticker struct {
+type OkSticker struct {
 	Ok     bool
 	FileId string
 }
 
-var Stickers = []Sticker{
+var OkStickers = []OkSticker{
 	{Ok: true, FileId: "CAACAgIAAxkBAAIl1F_qpqBIsKDZkI_aB0f7oqUGIrMFAAL3AAP3AsgP0JfeP4rRPA4eBA"},
 	{Ok: false, FileId: "CAACAgIAAxkBAAIl1V_qptdW43fw0eSnUxAqqWmtfErwAAL5AAP3AsgP9zQfNR3ox5QeBA"},
 
@@ -189,9 +189,15 @@ var Stickers = []Sticker{
 	{Ok: true, FileId: "CAACAgIAAxkBAAIosF_q_3tpPbJSG96LUY_FsuyzmmGRAAJPAQAClp-MDuqKyOWfpfQaHgQ"},
 }
 
+var (
+	BloopsStickerStart         = "CAACAgIAAxkBAAIqKF_taWxaUNreWeJ2Qiqzc3EFpnaXAAKCAAMVeEsGlKwjaLwG0pweBA"
+	BloopsStickerBlockFinished = "CAACAgIAAxkBAAIqKV_taZzZpTaYR66lYMdp_c90gbvCAAKBAAMVeEsGdEchmyY_eP0eBA"
+	BloopsStickerDropBloops    = "CAACAgIAAxkBAAIqKl_taafXchTCkbjiXoeSEc-raE5OAAKDAAMVeEsGErKqBeMChZAeBA"
+)
+
 func GenerateSticker(result bool) string {
-	var available []Sticker
-	for _, s := range Stickers {
+	var available []OkSticker
+	for _, s := range OkStickers {
 		if s.Ok == result {
 			available = append(available, s)
 		}

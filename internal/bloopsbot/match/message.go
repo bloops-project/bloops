@@ -69,33 +69,42 @@ func (r *Session) checkBloopsSendMsg(player *model.Player) (int, error) {
 }
 
 func (r *Session) sendDroppedBloopsesMsg(player *model.Player, bloops *resource.Bloops) error {
-	msg := tgbotapi.NewMessage(player.ChatId, r.renderDropBloopsMsg(bloops))
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(resource.TextChallengeBtnDataAnswer, resource.TextChallengeBtnDataAnswer),
-		),
-	)
-
-	msg.ParseMode = tgbotapi.ModeMarkdown
-	output, err := r.tg.Send(msg)
-	if err != nil {
-		return fmt.Errorf("send msg: %v", err)
+	{
+		msg := tgbotapi.NewStickerShare(player.ChatId, resource.BloopsStickerDropBloops)
+		if _, err := r.tg.Send(msg); err != nil {
+			return fmt.Errorf("send msg: %v", err)
+		}
 	}
+	util.Sleep(1 * time.Second)
+	{
+		msg := tgbotapi.NewMessage(player.ChatId, r.renderDropBloopsMsg(bloops))
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(resource.TextChallengeBtnDataAnswer, resource.TextChallengeBtnDataAnswer),
+			),
+		)
 
-	r.registerCbHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
-		if query.Data == resource.TextChallengeBtnDataAnswer {
-			if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextChallengeBtnDataAnswer)); err != nil {
-				return fmt.Errorf("send answer: %v", err)
-			}
-			r.startCh <- struct{}{}
+		msg.ParseMode = tgbotapi.ModeMarkdown
+		output, err := r.tg.Send(msg)
+		if err != nil {
+			return fmt.Errorf("send msg: %v", err)
 		}
 
-		r.mtx.Lock()
-		defer r.mtx.Unlock()
-		delete(r.msgCallback, output.MessageID)
+		r.registerCbHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
+			if query.Data == resource.TextChallengeBtnDataAnswer {
+				if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextChallengeBtnDataAnswer)); err != nil {
+					return fmt.Errorf("send answer: %v", err)
+				}
+				r.startCh <- struct{}{}
+			}
 
-		return nil
-	})
+			r.mtx.Lock()
+			defer r.mtx.Unlock()
+			delete(r.msgCallback, output.MessageID)
+
+			return nil
+		})
+	}
 
 	return nil
 }
@@ -350,6 +359,21 @@ func (r *Session) sendWhoFavoritesMsg() {
 	favorites := r.Favorites()
 
 	r.asyncBroadcast(r.renderGameFavorites(favorites))
+}
+
+func (r *Session) sendStartSticker() error {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+	for _, player := range r.Players {
+		if player.IsPlaying() && !player.Offline {
+			msg := tgbotapi.NewStickerShare(player.ChatId, resource.BloopsStickerBlockFinished)
+			if _, err := r.tg.Send(msg); err != nil {
+				return fmt.Errorf("send msg: %v", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (r *Session) sendCrashMsg() {

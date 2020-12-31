@@ -150,7 +150,7 @@ func (m *manager) Run(ctx context.Context) error {
 	userMiddleware := []commandMiddlewareFunc{m.isActive}
 	adminMiddleware := []commandMiddlewareFunc{m.isAdmin}
 	// register text command handlers
-	m.registerCommandHandler(resource.CmdStart, commandHandler{commandFn: m.handleStartButton, middlewareFn: userMiddleware})
+	m.registerCommandHandler(resource.CmdStart, commandHandler{commandFn: m.handleStartCommand, middlewareFn: userMiddleware})
 	m.registerCommandHandler(resource.CmdFeedback, commandHandler{commandFn: m.handleFeedbackCommand, middlewareFn: userMiddleware})
 	m.registerCommandHandler(resource.CmdRules, commandHandler{commandFn: m.handleRulesButton, middlewareFn: userMiddleware})
 	m.registerCommandHandler(resource.CmdProfile, commandHandler{commandFn: m.handleProfileCmd, middlewareFn: userMiddleware})

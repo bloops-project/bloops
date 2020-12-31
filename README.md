@@ -8,6 +8,8 @@ ___.   .__                                 ___.           __
      \/                   |__|       \/_____/   \/                                                                          
 ```
 
+## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/sod-horizontal.svg" width="400">
+
 ## What is bloopsbot?
 This is a telegram bot 🤖 for organizing quizzes similar to quizzes in tiktok, where you need to
 30 seconds name a few words from the proposed categories at a random letter. The bot is organizing, counting points, and you play with your friends
