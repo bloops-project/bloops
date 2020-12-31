@@ -18,7 +18,7 @@ func thumbDownButton(n int) tgbotapi.InlineKeyboardButton {
 	return tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("%d %s", n, resource.TextThumbDown), resource.TextThumbDown)
 }
 
-func (r *Session) renderDropBloopsMsg(challenge *resource.Bloops) string {
+func (r *Session) renderDropBloopsMsg(bloops *resource.Bloops) string {
 	buf := strpool.Get()
 	defer func() {
 		buf.Reset()
@@ -27,26 +27,26 @@ func (r *Session) renderDropBloopsMsg(challenge *resource.Bloops) string {
 
 	buf.WriteString(emoji.PartyPopper.String())
 	buf.WriteString(" *БЛЮПС!*\n\n")
-	buf.WriteString(fmt.Sprintf("*%s*", challenge.Name))
+	buf.WriteString(fmt.Sprintf("*%s*", bloops.Name))
 	buf.WriteString("\n")
-	buf.WriteString(challenge.Task)
+	buf.WriteString(bloops.Task)
 	buf.WriteString("\n\n")
 	buf.WriteString(emoji.HundredPoints.String())
 	buf.WriteString(" ")
-	if challenge.Points >= 0 {
+	if bloops.Points >= 0 {
 		buf.WriteString("+")
-		buf.WriteString(strconv.Itoa(challenge.Points))
+		buf.WriteString(strconv.Itoa(bloops.Points))
 	} else {
-		buf.WriteString(strconv.Itoa(challenge.Points))
+		buf.WriteString(strconv.Itoa(bloops.Points))
 	}
 	buf.WriteString(" очков\n")
 	buf.WriteString(emoji.Stopwatch.String())
 	buf.WriteString(" ")
-	if challenge.Seconds >= 0 {
+	if bloops.Seconds >= 0 {
 		buf.WriteString("+")
-		buf.WriteString(strconv.Itoa(challenge.Seconds))
+		buf.WriteString(strconv.Itoa(bloops.Seconds))
 	} else {
-		buf.WriteString(strconv.Itoa(challenge.Seconds))
+		buf.WriteString(strconv.Itoa(bloops.Seconds))
 	}
 	buf.WriteString(" сек\n\n")
 	buf.WriteString("Расскажи о блюпсе игрокам и постарайся выполнить")
@@ -169,6 +169,7 @@ func (r *Session) renderSetting() string {
 		buf.Reset()
 		strpool.Put(buf)
 	}()
+
 	buf.WriteString(emoji.Gear.String())
 	buf.WriteString(" *Параметры*\n\n")
 	buf.WriteString(emoji.ChequeredFlag.String())
@@ -181,19 +182,23 @@ func (r *Session) renderSetting() string {
 	buf.WriteString(" сек\n")
 	buf.WriteString(emoji.GemStone.String())
 	buf.WriteString(" Блюпсы: ")
+
 	if len(r.Config.Bloopses) > 0 {
 		buf.WriteString("да")
 	} else {
 		buf.WriteString("нет")
 	}
+
 	buf.WriteString("\n")
 	buf.WriteString(emoji.Loudspeaker.String())
 	buf.WriteString(" Голосование: ")
+
 	if r.Config.Vote {
 		buf.WriteString("да")
 	} else {
 		buf.WriteString("нет")
 	}
+
 	buf.WriteString("\n\n")
 	buf.WriteString(emoji.CardIndex.String())
 	buf.WriteString(" Категории\n")
@@ -225,10 +230,31 @@ func (r *Session) renderPlayerGetPoints(player *model.Player, points int) string
 		buf.Reset()
 		strpool.Put(buf)
 	}()
+
 	buf.WriteString(player.FormatFirstName())
 	buf.WriteString(" набирает ")
 	buf.WriteString(strconv.Itoa(points))
 	buf.WriteString(" очков")
+
+	return buf.String()
+}
+
+func (r *Session) renderStartHelpMsg(player *model.Player, sentLetter string) string {
+	buf := strpool.Get()
+	defer func() {
+		buf.Reset()
+		strpool.Put(buf)
+	}()
+
+	buf.WriteString("Игрок ")
+	buf.WriteString(player.FormatFirstName())
+	buf.WriteString(" должен назвать слова:\n\n")
+	buf.WriteString(r.renderCategories())
+	buf.WriteString("\n\n")
+	buf.WriteString("На букву: ")
+	buf.WriteString("*")
+	buf.WriteString(sentLetter)
+	buf.WriteString("*")
 
 	return buf.String()
 }

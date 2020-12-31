@@ -103,10 +103,6 @@ func (r *Session) sendDroppedBloopsesMsg(player *model.Player, bloops *resource.
 // select the letter that the player needs to call the words
 func (r *Session) sendLetterMsg(player *model.Player) error {
 	buf := strpool.Get()
-	defer func() {
-		buf.Reset()
-		strpool.Put(buf)
-	}()
 
 	output, err := r.tg.Send(tgbotapi.NewMessage(player.ChatId, resource.TextStartLetterMsg))
 	if err != nil {
@@ -142,15 +138,10 @@ func (r *Session) sendLetterMsg(player *model.Player) error {
 	}
 
 	buf.Reset()
-	buf.WriteString("Игрок ")
-	buf.WriteString(player.FormatFirstName())
-	buf.WriteString(" должен назвать слова:\n\n")
-	buf.WriteString(r.renderCategories())
-	buf.WriteString("\n\n")
-	buf.WriteString("На букву: ")
-	buf.WriteString("*")
-	buf.WriteString(sentLetter)
-	buf.WriteString("*")
+	strpool.Put(buf)
+
+	r.renderStartHelpMsg(player, sentLetter)
+
 	r.syncBroadcast(buf.String(), player.UserId)
 
 	close(sndCh)

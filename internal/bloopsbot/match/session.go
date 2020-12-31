@@ -436,6 +436,7 @@ PlayerLoop:
 					r.Config.AuthorName,
 					player.User.FirstName,
 				)
+
 				rate.Bloops = true
 				msg := tgbotapi.NewDeleteMessage(player.ChatId, messageId)
 				if _, err := r.tg.Send(msg); err != nil {
@@ -451,6 +452,7 @@ PlayerLoop:
 				if err := r.sendDroppedBloopsesMsg(player, bloops); err != nil {
 					return fmt.Errorf("send bloopsbot: %v", err)
 				}
+
 				logger.Infof(
 					"Game session %d, author: %s, bloops is %s for player %s",
 					r.Config.Code,
@@ -458,6 +460,7 @@ PlayerLoop:
 					bloops.Name,
 					player.User.FirstName,
 				)
+
 				timerFatal := time.NewTimer(defaultInactiveFatalTime * time.Second)
 				timerWarn := time.NewTimer(defaultInactiveWarnTime * time.Second)
 			ChallengeNext:
