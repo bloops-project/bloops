@@ -3,24 +3,6 @@ before:
     - go mod download
     - go generate ./...
 builds:
-  - main: ./cmd/bloopsbot-srv
-    id: srv
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - windows
-      - darwin
-    goarch:
-      - amd64
-      - arm
-      - arm64
-    goarm:
-      - 6
-      - 7
-    ldflags:
-      - -s -w -X main.version={{.Version}}
-    binary: bloopsbot-srv
   - main: ./cmd/bloopsbot-cli
     id: cli
     env:
@@ -29,19 +11,12 @@ builds:
       - linux
       - windows
       - darwin
-    goarch:
-      - amd64
-      - arm
-      - arm64
-    goarm:
-      - 6
-      - 7
     ldflags:
       - -s -w -X main.version={{.Version}}
     binary: bloopsbot-cli
 archives:
   - replacements:
-      darwin: Darwin
+      darwin: MacOSX
       linux: Linux
       windows: Windows
       386: i386
