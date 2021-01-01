@@ -18,12 +18,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build
-        run: go build \
-          -trimpath \
-          -ldflags "-s -w -X main.version=$(git describe --tags --abbrev=0) -extldflags '-static'" \
-          -installsuffix cgo \
-          -tags netgo \
-          ./cmd/bloopsbot-srv
+        run: go build ./cmd/bloopsbot-srv
 
       - name: Test
         run: go test -v ./...
