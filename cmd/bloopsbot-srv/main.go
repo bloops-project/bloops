@@ -20,13 +20,15 @@ import (
 	"os"
 )
 
+var version string
+
 func main() {
 	_, _ = fmt.Fprint(os.Stdout, resource.Graffiti)
 	_, _ = fmt.Fprintf(
 		os.Stdout,
 		resource.GreetingCLI,
 		resource.ProjectName,
-		resource.ProjectVersion,
+		version,
 		resource.TgBloopUrl,
 		resource.GithubBloopUrl,
 	)
@@ -38,7 +40,7 @@ func main() {
 		logging.DefaultLogger().Fatalf("processing the config: %v", err)
 	}
 
-	logger := logging.NewLogger(config.Debug).With("version", resource.ProjectVersion)
+	logger := logging.NewLogger(config.Debug)
 
 	if err := realMain(ctx, config, done); err != nil {
 		logger.Fatalf("main.realMain: %v", err)

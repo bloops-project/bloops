@@ -18,10 +18,22 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build
-        run: go build -v ./...
+        run: go build \
+          -trimpath \
+          -ldflags "-s -w -X main.version=$(git describe --tags --abbrev=0) -extldflags '-static'" \
+          -installsuffix cgo \
+          -tags netgo \
+          -o /app/bot \
+          ./cmd/bloopsbot-srv
 
       - name: Test
         run: go test -v ./...
+
+      - name: goreleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          version: latest
+          args: release --snapshot --config .goreleaser.yml
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1

@@ -13,7 +13,7 @@ COPY . .
 
 RUN go build \
   -trimpath \
-  -ldflags "-s -w -extldflags '-static'" \
+  -ldflags "-s -w -X main.version=$(git describe --tags --abbrev=0) -extldflags '-static'" \
   -installsuffix cgo \
   -tags netgo \
   -o /app/bot \
