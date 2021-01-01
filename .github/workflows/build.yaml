@@ -1,0 +1,33 @@
+name: Bloops
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  nightly_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Go 1.15
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.15
+        id: go
+
+      - uses: actions/checkout@master
+
+      - name: test
+        run: go test -v -cover -covermode=atomic ./...
+
+      - name: images
+        run: |
+          docker images
+      - name: docker_login
+        run: |
+          docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}"
+      - name: docker_push
+        run: |
+          NDATE=$(date +%Y%m%d)
+          docker push robotomize/bloops:${NDATE}
+          docker push robotomize/bloops
