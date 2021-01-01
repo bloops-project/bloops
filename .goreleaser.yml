@@ -37,4 +37,3 @@ release:
     disable: false
     draft: true
     prerelease: auto
-    name_template: "{{.ProjectName}}-v{{.Version}}"
