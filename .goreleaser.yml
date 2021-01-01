@@ -8,6 +8,7 @@ builds:
     env:
       - CGO_ENABLED=0
     goos:
+      - freebsd
       - linux
       - windows
       - darwin
@@ -31,3 +32,9 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+release:
+  github:
+    disable: false
+    draft: true
+    prerelease: auto
+    name_template: "{{.ProjectName}}-v{{.Version}}"
