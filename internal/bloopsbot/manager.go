@@ -652,7 +652,7 @@ func (m *manager) appendStat(session *match.Session) error {
 		stat.PlayersNum = len(session.Players)
 
 		var bestDuration, worstDuration, sumDuration, durationNum time.Duration = 2 << 31, 0, 0, 0
-		var bestPoints, worstPoints, sumPoints, pointsNum = 0, 2 << 31, 0, 0
+		var bestPoints, worstPoints, sumPoints, pointsNum = 0, 2 << 28, 0, 0
 
 		for _, rate := range player.Rates {
 			if !rate.Bloops {

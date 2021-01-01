@@ -43,3 +43,11 @@ jobs:
           push: true
           tags: |
             robotomize/bloops:latest
+
+      - name: Send a message to Telegram
+        uses: robotomize/notify-telegram@v0.2.4
+        with:
+          chat: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          status: ${{ job.status }}
+          message: "Build complete"

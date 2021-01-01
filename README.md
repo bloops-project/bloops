@@ -2,6 +2,8 @@
 
 ## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/bloops_logo_short_trans.png" width="400">
 
+![Bloops](https://github.com/robotomize/bloops/workflows/Bloops/badge.svg)
+
 ## What is bloops bot?
 This is a telegram bot 🤖 for organizing quizzes similar to quizzes in tiktok, where you need to
 30 seconds name a few words from the proposed categories at a random letter. The bot is organizing, counting points, and you play with your friends
@@ -36,6 +38,12 @@ No😔, only in Russian
 This is shitty code, I know there is no testing in it, but this is my little hackathon to get it done quickly for the holidays
 
 ## 🚀 Quick start
+
+Use docker
+```
+docker pull robotomize/bloops
+```
+
 For CLI version make 
 1. *Clone repo*
 ```
@@ -51,10 +59,6 @@ $ go build cmd/bloop-cli
 $ ./bloop-cli
 ```
 
-To build a docker image run the following commands
-```
-$ docker build -e BLOOP_TOKEN="BOT_TOKEN" -it . 
-```
 Or you can build the service by adding the bot token to the environment variables
 ```
 $ go build cmd/bloop-srv
