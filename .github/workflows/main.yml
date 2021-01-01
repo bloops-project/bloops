@@ -27,7 +27,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           version: latest
-          args: release --snapshot --config .goreleaser.yml
+          args: release --config .goreleaser.yml
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
