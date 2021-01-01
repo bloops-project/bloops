@@ -36,6 +36,3 @@ release:
   github:
     owner: robotomize
     name: bloops
-    disable: false
-    draft: false
-    prerelease: false
