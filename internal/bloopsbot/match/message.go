@@ -149,9 +149,7 @@ func (r *Session) sendLetterMsg(player *model.Player) error {
 	buf.Reset()
 	strpool.Put(buf)
 
-	r.renderStartHelpMsg(player, sentLetter)
-
-	r.syncBroadcast(buf.String(), player.UserId)
+	r.syncBroadcast(r.renderStartHelpMsg(player, sentLetter), player.UserId)
 
 	close(sndCh)
 
