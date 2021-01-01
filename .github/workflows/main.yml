@@ -31,6 +31,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Upload assets
+        uses: actions/upload-artifact@v2
+        with:
+          name: bloops
+          path: dist/*
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 
