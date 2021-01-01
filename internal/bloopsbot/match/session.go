@@ -607,10 +607,6 @@ PlayerLoop:
 			player.User.FirstName,
 		)
 
-		if secs > maxDefaultRoundScore {
-			secs = maxDefaultRoundScore
-		}
-
 		var reward int
 		if secs > 0 {
 			reward = r.bloopsPoints

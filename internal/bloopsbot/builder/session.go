@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultRoundsNum = 3
+	defaultRoundsNum = 1
 	minCategoriesNum = 3
 	defaultRoundTime = 30
 )
@@ -24,7 +24,6 @@ type stateKind uint8
 const (
 	stateKindCategories stateKind = iota + 1
 	stateKindRoundsNum
-	stateKindRoundTime
 	stateKindLetters
 	stateKindBloops
 	stateKindVote
@@ -34,7 +33,6 @@ const (
 var stages = []stateKind{
 	stateKindCategories,
 	stateKindRoundsNum,
-	stateKindRoundTime,
 	stateKindLetters,
 	stateKindBloops,
 	stateKindVote,
@@ -79,7 +77,6 @@ func NewSession(
 	s.handleControlCb(resource.BuilderInlineDoneData, s.clickOnDone)
 
 	s.handleActionCb(stateKindCategories, s.clickOnCategories)
-	s.handleActionCb(stateKindRoundTime, s.clickOnRoundTime)
 	s.handleActionCb(stateKindRoundsNum, s.clickOnRoundsNum)
 	s.handleActionCb(stateKindLetters, s.clickOnLetters)
 	s.handleActionCb(stateKindBloops, s.clickOnBloops)
@@ -241,15 +238,6 @@ func (bs *Session) loop(ctx context.Context) {
 					logger.Errorf("send round num: %v", err)
 				}
 				bs.messageId = output.MessageID
-			case stateKindRoundTime:
-				logger.Infof("Building session, sending rounds time, author %s", bs.AuthorName)
-				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextRoundTime)
-				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderRoundsTime())
-				output, err := bs.tg.Send(msg)
-				if err != nil {
-					logger.Errorf("send round num: %v", err)
-				}
-				bs.messageId = output.MessageID
 			case stateKindLetters:
 				logger.Infof("Building session, sending letters, author %s", bs.AuthorName)
 				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextDeleteComplexLetters)
@@ -382,23 +370,6 @@ func (bs *Session) clickOnCategories(query *tgbotapi.CallbackQuery) error {
 	if _, err := bs.tg.Send(msg); err != nil {
 		return fmt.Errorf("send msg: %v", err)
 	}
-
-	return nil
-}
-
-func (bs *Session) clickOnRoundTime(query *tgbotapi.CallbackQuery) error {
-	n, err := strconv.Atoi(query.Data)
-	if err != nil {
-		return fmt.Errorf("strconv: %v", err)
-	}
-
-	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, fmt.Sprintf(resource.TextRoundTimeAnswer, n))); err != nil {
-		return fmt.Errorf("send answer msg: %v", err)
-	}
-
-	bs.RoundTime = n
-	bs.state.next()
-	bs.messageCh <- struct{}{}
 
 	return nil
 }
