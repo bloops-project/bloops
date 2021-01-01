@@ -2,7 +2,7 @@ name: Bloops
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   nightly_release:
