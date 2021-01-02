@@ -19,14 +19,7 @@ import (
 	"time"
 )
 
-const (
-	MinStartPlayersNum = 2
-)
-
-const (
-	challengeMaxWeight   = 3
-	maxDefaultRoundScore = 30
-)
+const bloopsMaxWeight = 3
 
 const (
 	generateLetterTimes      = 10
@@ -194,25 +187,6 @@ func (r *Session) isPossibleStart(userId int64, cmd string) bool {
 
 func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) error {
 	if r.isPossibleStart(userId, query.Text) {
-		if len(r.Players) < MinStartPlayersNum {
-			if player, ok := r.findPlayer(userId); ok {
-				msg := tgbotapi.NewMessage(
-					player.ChatId,
-					fmt.Sprintf(resource.TextValidationRequiresMoreOnePlayerMsg, MinStartPlayersNum),
-				)
-				msg.ParseMode = tgbotapi.ModeMarkdown
-				if _, err := r.tg.Send(msg); err != nil {
-					return fmt.Errorf("send msg: %v", err)
-				}
-			}
-
-			return ValidationErr
-		}
-
-		if err := r.sendStartSticker(); err != nil {
-			return fmt.Errorf("send start sticker: %v", err)
-		}
-
 		if player, ok := r.findPlayer(userId); ok {
 			msg := tgbotapi.NewMessage(player.ChatId, resource.TextGameStarted)
 			msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
@@ -223,6 +197,10 @@ func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) err
 			if _, err := r.tg.Send(msg); err != nil {
 				return fmt.Errorf("send msg: %v", err)
 			}
+		}
+
+		if err := r.sendStartSticker(); err != nil {
+			return fmt.Errorf("send start sticker: %v", err)
 		}
 
 		r.asyncBroadcast(resource.TextGameStarted, userId)
@@ -882,8 +860,14 @@ func (r *Session) AddPlayer(player *model.Player) error {
 func (r *Session) addPlayer(player *model.Player) (*model.Player, bool) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
+
 	for _, p := range r.Players {
 		if p.ChatId == player.ChatId && p.UserId == player.UserId && p.FormatFirstName() == player.FormatFirstName() {
+			if player.State == model.PlayerStateKindLeaving {
+				player.State = model.PlayerStateKindPlaying
+				return nil, true
+			}
+
 			return nil, false
 		}
 	}
@@ -968,7 +952,7 @@ func (r *Session) randWeightedBloopses() resource.Bloops {
 	}
 
 	for _, challenge := range r.Config.Bloopses[mn:mx] {
-		rndNum := float64(fastrand.Uint32n(challengeMaxWeight)) / challengeMaxWeight
+		rndNum := float64(fastrand.Uint32n(bloopsMaxWeight)) / bloopsMaxWeight
 		rnd := math.Pow(rndNum, 1/float64(challenge.Weight))
 		if rnd > max {
 			max = rnd

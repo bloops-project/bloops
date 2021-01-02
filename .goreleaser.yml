@@ -3,7 +3,7 @@ before:
     - go mod download
     - go generate ./...
 builds:
-  - main: ./cmd/bloopsbot-cli
+  - main: ./cmd/bloops-cli
     id: cli
     env:
       - CGO_ENABLED=0
@@ -14,7 +14,7 @@ builds:
       - darwin
     ldflags:
       - -s -w -X main.version={{.Version}}
-    binary: bloopsbot-cli
+    binary: bloops-cli
 archives:
   - replacements:
       darwin: MacOSX

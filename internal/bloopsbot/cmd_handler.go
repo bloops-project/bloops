@@ -12,16 +12,13 @@ import (
 )
 
 func (m *manager) handleStartCommand(u userModel.User, chatId int64) error {
-	{
-		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf(resource.TextGreetingMsg, u.FirstName))
-		msg.ParseMode = tgbotapi.ModeMarkdown
-		msg.ReplyMarkup = resource.CommonButtons
+	msg := tgbotapi.NewMessage(chatId, fmt.Sprintf(resource.TextGreetingMsg, u.FirstName))
+	msg.ParseMode = tgbotapi.ModeMarkdown
+	msg.ReplyMarkup = resource.CommonButtons
 
-		if _, err := m.tg.Send(msg); err != nil {
-			return fmt.Errorf("send msg: %v", err)
-		}
+	if _, err := m.tg.Send(msg); err != nil {
+		return fmt.Errorf("send msg: %v", err)
 	}
-
 	return nil
 }
 

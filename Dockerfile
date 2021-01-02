@@ -17,7 +17,7 @@ RUN go build \
   -installsuffix cgo \
   -tags netgo \
   -o /app/bot \
-  ./cmd/bloopsbot-srv
+  ./cmd/bloops-srv
 
 RUN strip /app/bot
 RUN upx -q -9 /app/bot
