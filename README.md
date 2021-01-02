@@ -64,7 +64,7 @@ $ go build cmd/bloops-cli
 ```
 3. *Register your bot token* [bot father](https://t.me/BotFather)
 ```
-$ ./bloop-cli
+$ ./bloops-cli
 ```
 
 Or you can build the service by adding the bot token to the environment variables
@@ -72,4 +72,4 @@ Or you can build the service by adding the bot token to the environment variable
 $ go build cmd/bloops-srv
 ```
 ## Contact
-tg: [@robotomize](https://t.me/robotomize)
+Telegram: [@robotomize](https://t.me/robotomize)
