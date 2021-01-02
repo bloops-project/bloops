@@ -31,7 +31,7 @@ You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)
 ## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/create.gif">
 
 ### The process of the game
-## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/create.gif">
+## <img src="https://raw.githubusercontent.com/robotomize/bloopsbot/main/docs/images/playing.gif">
 
 ## Play
 🚀 [PLAY](https://t.me/bloops_bot)
