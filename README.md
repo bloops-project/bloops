@@ -25,6 +25,9 @@ You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)
 * 👨‍🔬🥽🧪 Key-value embedded db, when moving the application to another location, you just need to copy the db file and run the application
 * 🚀 Without complex configuration, compiled and started
 
+## Language and localization
+No😔, only in Russian
+
 ## How does it work?
 
 ### Creating a game
@@ -35,9 +38,6 @@ You can use it here -> [bloops in Telegram](https://t.me/bloops_bot)
 
 ## Play
 🚀 [PLAY](https://t.me/bloops_bot)
-
-## Language and localization
-No😔, only in Russian
 
 ## Site
 🖥🖱🌍 [bloops.fun](https://bloops.fun)
