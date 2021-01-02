@@ -55,12 +55,12 @@ docker pull robotomize/bloops
 For CLI version make 
 1. *Clone repo*
 ```
-$ git clone https://github.com/robotomize/bloop.git
+$ git clone https://github.com/robotomize/bloops.git
 ```
 2. *Build CLI application*
 ```
 $ cd bloop
-$ go build cmd/bloop-cli
+$ go build cmd/bloops-cli
 ```
 3. *Register your bot token* [bot father](https://t.me/BotFather)
 ```
@@ -69,7 +69,7 @@ $ ./bloop-cli
 
 Or you can build the service by adding the bot token to the environment variables
 ```
-$ go build cmd/bloop-srv
+$ go build cmd/bloops-srv
 ```
 ## Contact
 tg: [@robotomize](https://t.me/robotomize)
