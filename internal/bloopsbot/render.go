@@ -5,6 +5,7 @@ import (
 	statModel "bloop/internal/database/stat/model"
 	userModel "bloop/internal/database/user/model"
 	"bloop/internal/strpool"
+	"fmt"
 	"github.com/enescakir/emoji"
 	"strconv"
 	"time"
@@ -16,35 +17,29 @@ func renderProfile(u userModel.User, stat statModel.AggregationStat) string {
 		buf.Reset()
 		strpool.Put(buf)
 	}()
-	buf.WriteString(emoji.Alien.String())
-	buf.WriteString(" Профиль игрока ")
-	buf.WriteString("*")
-	buf.WriteString(u.FirstName)
-	buf.WriteString("*")
-	buf.WriteString("\n\n")
-	buf.WriteString(emoji.VideoGame.String())
-	buf.WriteString(" Сыграно: ")
-	buf.WriteString(strconv.Itoa(stat.Count))
-	buf.WriteString("\n")
-	buf.WriteString(emoji.Star.String() + " Побед: ")
-	buf.WriteString(strconv.Itoa(stat.Stars))
-	buf.WriteString("\n")
-	buf.WriteString(emoji.GemStone.String() + " Блюпсов открыто: ")
-	buf.WriteString(strconv.Itoa(len(stat.Bloops)))
-	buf.WriteString("/")
-	buf.WriteString(strconv.Itoa(len(resource.BloopsKeys)))
-	buf.WriteString("\n")
-	buf.WriteString(emoji.Stopwatch.String())
-	buf.WriteString(" Лучшее время раунда: ")
-	buf.WriteString(stat.BestDuration.Round(100 * time.Millisecond).String())
-	buf.WriteString("\n")
-	buf.WriteString(emoji.Stopwatch.String())
-	buf.WriteString(" Среднее время раунда: ")
-	buf.WriteString(stat.AvgDuration.Round(100 * time.Millisecond).String())
-	buf.WriteString("\n")
-	buf.WriteString(emoji.HundredPoints.String())
-	buf.WriteString(" Лучший счет раунда: ")
-	buf.WriteString(strconv.Itoa(stat.BestPoints))
+	_, _ = fmt.Fprintf(buf, "%s Профиль игрока *%s*\n\n", emoji.Alien.String(), u.FirstName)
+	_, _ = fmt.Fprintf(buf, "%s Сыграно: %s\n", emoji.VideoGame.String(), strconv.Itoa(stat.Count))
+	_, _ = fmt.Fprintf(buf, "%s Побед: %s\n", emoji.Star.String(), strconv.Itoa(stat.Stars))
+	_, _ = fmt.Fprintf(
+		buf,
+		"%s Блюпсов открыто: %s/%s\n",
+		emoji.GemStone.String(),
+		strconv.Itoa(len(stat.Bloops)),
+		strconv.Itoa(len(resource.BloopsKeys)),
+	)
+	_, _ = fmt.Fprintf(
+		buf,
+		"%s Лучшее время раунда: %s\n",
+		emoji.Stopwatch.String(),
+		stat.BestDuration.Round(100*time.Millisecond).String(),
+	)
+	_, _ = fmt.Fprintf(
+		buf,
+		"%s Среднее время раунда: %s\n",
+		emoji.Stopwatch.String(),
+		stat.AvgDuration.Round(100*time.Millisecond).String(),
+	)
+	_, _ = fmt.Fprintf(buf, "%s Лучший счет раунда: %s", emoji.HundredPoints.String(), strconv.Itoa(stat.BestPoints))
 
 	return buf.String()
 }
