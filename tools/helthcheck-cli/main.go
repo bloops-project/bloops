@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -17,7 +18,7 @@ import (
 )
 
 type Config struct {
-	Url      string `envconfig:"BLOOP_HP_URL"`
+	URL      string `envconfig:"BLOOP_HP_URL"`
 	Username string `envconfig:"BLOOP_HP_USERNAME"`
 	Password string `envconfig:"BLOOP_HP_PASSWORD"`
 }
@@ -45,11 +46,15 @@ func main() {
 		ExpectContinueTimeout: 1 * time.Second,
 		ResponseHeaderTimeout: 10 * time.Second,
 	}))
-
-	resp, err := client.Get(config.Url)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, config.URL, nil)
+	if err != nil {
+		logger.Fatalf("new request: %v", err)
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		logger.Fatalf("client get: %v", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
 		bytes, err := ioutil.ReadAll(resp.Body)
@@ -65,6 +70,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	_, _ = fmt.Fprintf(os.Stdout, strconv.Itoa(resp.StatusCode))
+	_, _ = fmt.Fprint(os.Stdout, strconv.Itoa(resp.StatusCode))
 	_, _ = fmt.Fprint(os.Stdout, "\n")
 }

@@ -33,7 +33,7 @@ func GenerateCodeHash() (int64, error) {
 	h := fnv.New32a()
 	bytes, err := time.Now().MarshalBinary()
 	if err != nil {
-		return 0, fmt.Errorf("hash binary encode error: %v", err)
+		return 0, fmt.Errorf("hash binary encode error: %w", err)
 	}
 
 	_, err = h.Write(bytes)

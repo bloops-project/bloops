@@ -4,9 +4,10 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
-	"github.com/bloops-games/bloops/internal/bytespool"
 	"strconv"
 	"time"
+
+	"github.com/bloops-games/bloops/internal/bytespool"
 )
 
 func SerializedSha1FromTime() string {
@@ -25,7 +26,7 @@ func Sha1FromTimestamp() ([20]byte, error) {
 	var hash [20]byte
 	b, err := time.Now().MarshalBinary()
 	if err != nil {
-		return hash, fmt.Errorf("marshal binary time.now(): %v", err)
+		return hash, fmt.Errorf("marshal binary time.now(): %w", err)
 	}
 
 	hash = sha1.Sum(b)

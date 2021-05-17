@@ -3,18 +3,21 @@ package database
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/bloops-games/bloops/internal/byteutil"
 	"github.com/bloops-games/bloops/internal/cache"
 	"github.com/bloops-games/bloops/internal/database"
 	"github.com/bloops-games/bloops/internal/database/stat/model"
 	bolt "go.etcd.io/bbolt"
-	"time"
 )
 
 const prefix = "stat"
 
-var pLen = len(prefix)
-var NotFoundErr = fmt.Errorf("not found")
+var (
+	pLen        = len(prefix)
+	ErrNotFound = fmt.Errorf("not found")
+)
 
 func New(db *database.DB, cache cache.Cache) *DB {
 	return &DB{sDB: db, cache: cache}
@@ -26,10 +29,10 @@ type DB struct {
 	cache cache.Cache
 }
 
-func (db *DB) BytesBucket(userId int64) []byte {
+func (db *DB) BytesBucket(userID int64) []byte {
 	b := make([]byte, pLen+2<<5) // prefix + uint64
 	copy(b, prefix[:])
-	copy(b[pLen:], byteutil.EncodeInt64ToBytes(userId))
+	copy(b[pLen:], byteutil.EncodeInt64ToBytes(userID))
 	return b
 }
 
@@ -37,11 +40,11 @@ func (db *DB) SerialBucket(userID int64) string {
 	return fmt.Sprintf("%s%d", prefix, userID)
 }
 
-func (db *DB) FetchRateStat(userId int64) (model.RateStat, error) {
+func (db *DB) FetchRateStat(userID int64) (model.RateStat, error) {
 	var rates model.RateStat
-	stats, err := db.FetchByUserId(userId)
+	stats, err := db.FetchByuserID(userID)
 	if err != nil {
-		return rates, fmt.Errorf("fetch by userId: %w", err)
+		return rates, fmt.Errorf("fetch by userID: %w", err)
 	}
 	var bloops []string
 	for _, stat := range stats {
@@ -63,14 +66,14 @@ func (db *DB) FetchRateStat(userId int64) (model.RateStat, error) {
 	return rates, nil
 }
 
-func (db *DB) FetchProfileStat(userId int64) (model.AggregationStat, error) {
+func (db *DB) FetchProfileStat(userID int64) (model.AggregationStat, error) {
 	var aggregationStat model.AggregationStat
 	var sumPoints, pointsNum int
 	var sumDuration time.Duration
 
-	stats, err := db.FetchByUserId(userId)
+	stats, err := db.FetchByuserID(userID)
 	if err != nil {
-		return aggregationStat, fmt.Errorf("fetch by userId: %w", err)
+		return aggregationStat, fmt.Errorf("fetch by userID: %w", err)
 	}
 	for _, stat := range stats {
 		if stat.BestPoints > aggregationStat.BestPoints {
@@ -123,10 +126,10 @@ func (db *DB) FetchProfileStat(userId int64) (model.AggregationStat, error) {
 	return aggregationStat, nil
 }
 
-func (db *DB) FetchByUserId(userId int64) ([]model.Stat, error) {
+func (db *DB) FetchByuserID(userID int64) ([]model.Stat, error) {
 	var list []model.Stat
-	bBucket := db.BytesBucket(userId)
-	sBucket := db.SerialBucket(userId)
+	bBucket := db.BytesBucket(userID)
+	sBucket := db.SerialBucket(userID)
 	if db.cache != nil {
 		v, ok := db.cache.Get(sBucket)
 		if ok {
@@ -137,18 +140,18 @@ func (db *DB) FetchByUserId(userId int64) ([]model.Stat, error) {
 	if err := db.sDB.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bBucket)
 		if b == nil {
-			return NotFoundErr
+			return ErrNotFound
 		}
 
 		if err := b.ForEach(func(k, v []byte) error {
 			var metric model.Stat
 			if err := json.Unmarshal(v, &metric); err != nil {
-				return fmt.Errorf("json unmarshal error, %q", err)
+				return fmt.Errorf("json unmarshal error, %w", err)
 			}
 			list = append(list, metric)
 			return nil
 		}); err != nil {
-			return fmt.Errorf("bucket for each: %v", err)
+			return fmt.Errorf("bucket for each: %w", err)
 		}
 
 		return nil
@@ -166,39 +169,39 @@ func (db *DB) FetchByUserId(userId int64) ([]model.Stat, error) {
 func (db *DB) Add(m model.Stat) error {
 	tx, err := db.sDB.DB.Begin(true)
 	if err != nil {
-		return fmt.Errorf("starting transaction: %v", err)
+		return fmt.Errorf("starting transaction: %w", err)
 	}
 
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint
 
-	bBucket := db.BytesBucket(m.UserId)
-	sBucket := db.SerialBucket(m.UserId)
+	bBucket := db.BytesBucket(m.UserID)
+	sBucket := db.SerialBucket(m.UserID)
 
 	b := tx.Bucket(bBucket)
 	if b == nil {
-		bs, err := tx.CreateBucket(db.BytesBucket(m.UserId))
+		bs, err := tx.CreateBucket(db.BytesBucket(m.UserID))
 		if err != nil {
-			return fmt.Errorf("can not create bucket %d: %w", m.UserId, err)
+			return fmt.Errorf("can not create bucket %d: %w", m.UserID, err)
 		}
 		b = bs
 	}
 
-	binaryId, err := m.Id.MarshalBinary()
+	binaryID, err := m.ID.MarshalBinary()
 	if err != nil {
-		return fmt.Errorf("uuid binary: %v", err)
+		return fmt.Errorf("uuid binary: %w", err)
 	}
 
 	bytes, err := json.Marshal(m)
 	if err != nil {
-		return fmt.Errorf("marshal: %v", err)
+		return fmt.Errorf("marshal: %w", err)
 	}
 
-	if err := b.Put(binaryId, bytes); err != nil {
+	if err := b.Put(binaryID, bytes); err != nil {
 		return fmt.Errorf("put to bucket error: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("committing transaction: %v", err)
+		return fmt.Errorf("committing transaction: %w", err)
 	}
 
 	if db.cache != nil {

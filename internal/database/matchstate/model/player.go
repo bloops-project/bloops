@@ -1,10 +1,11 @@
 package model
 
 import (
+	"strconv"
+
 	userModel "github.com/bloops-games/bloops/internal/database/user/model"
 	"github.com/bloops-games/bloops/internal/strpool"
 	"github.com/enescakir/emoji"
-	"strconv"
 )
 
 type PlayerStateKind uint8
@@ -14,11 +15,11 @@ const (
 	PlayerStateKindLeaving
 )
 
-func NewPlayer(chatId int64, user userModel.User, offline bool) *Player {
+func NewPlayer(chatID int64, user userModel.User, offline bool) *Player {
 	return &Player{
 		User:    user,
-		UserId:  user.Id,
-		ChatId:  chatId,
+		UserID:  user.ID,
+		ChatID:  chatID,
 		Rates:   []*Rate{},
 		State:   PlayerStateKindPlaying,
 		Offline: offline,
@@ -29,8 +30,8 @@ type Player struct {
 	User    userModel.User  `json:"user"`
 	State   PlayerStateKind `json:"state"`
 	Offline bool            `json:"offline"`
-	ChatId  int64           `json:"chatId"`
-	UserId  int64           `json:"userId"`
+	ChatID  int64           `json:"chatId"`
+	UserID  int64           `json:"userID"`
 	Rates   []*Rate         `json:"rates"`
 }
 

@@ -2,6 +2,7 @@ package cachelru
 
 import (
 	"fmt"
+
 	"github.com/bloops-games/bloops/internal/cache"
 	lru "github.com/hashicorp/golang-lru"
 )
@@ -9,7 +10,7 @@ import (
 func NewLRU(size int) (*LRU, error) {
 	c, err := lru.NewARC(size)
 	if err != nil {
-		return nil, fmt.Errorf("lru new instance of lru arc cache: %v", err)
+		return nil, fmt.Errorf("lru new instance of lru arc cache: %w", err)
 	}
 
 	return &LRU{cache: c}, nil

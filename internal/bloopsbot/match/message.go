@@ -3,6 +3,11 @@ package match
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"strconv"
+	"sync"
+	"time"
+
 	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	"github.com/bloops-games/bloops/internal/bloopsbot/util"
 	"github.com/bloops-games/bloops/internal/database/matchstate/model"
@@ -12,15 +17,11 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/valyala/fastrand"
 	"golang.org/x/sync/errgroup"
-	"math/rand"
-	"strconv"
-	"sync"
-	"time"
 )
 
 // notification of the player's readiness and sending the start button
 func (r *Session) sendStartMsg(player *model.Player) error {
-	msg := tgbotapi.NewMessage(player.ChatId, r.renderStartMsg())
+	msg := tgbotapi.NewMessage(player.ChatID, r.renderStartMsg())
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(resource.TextStartBtnData, resource.TextStartBtnData),
@@ -29,13 +30,13 @@ func (r *Session) sendStartMsg(player *model.Player) error {
 	msg.ParseMode = tgbotapi.ModeMarkdown
 	output, err := r.tg.Send(msg)
 	if err != nil {
-		return fmt.Errorf("send msg: %v", err)
+		return fmt.Errorf("send msg: %w", err)
 	}
 
 	r.registerCbHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 		if query.Data == resource.TextStartBtnData {
 			if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextStartBtnDataAnswer)); err != nil {
-				return fmt.Errorf("send answer: %v", err)
+				return fmt.Errorf("send answer: %w", err)
 			}
 			r.startCh <- struct{}{}
 		}
@@ -51,16 +52,16 @@ func (r *Session) sendStartMsg(player *model.Player) error {
 }
 
 func (r *Session) checkBloopsSendMsg(player *model.Player) (int, error) {
-	msg := tgbotapi.NewMessage(player.ChatId, emoji.GameDie.String()+"...")
+	msg := tgbotapi.NewMessage(player.ChatID, emoji.GameDie.String()+"...")
 	output, err := r.tg.Send(msg)
 	if err != nil {
-		return 0, fmt.Errorf("send msg: %v", err)
+		return 0, fmt.Errorf("send msg: %w", err)
 	}
 	util.Sleep(1 * time.Second)
 	for i := 3; i > 0; i-- {
-		msg := tgbotapi.NewEditMessageText(player.ChatId, output.MessageID, emoji.GameDie.String()+"..."+strconv.Itoa(i))
+		msg := tgbotapi.NewEditMessageText(player.ChatID, output.MessageID, emoji.GameDie.String()+"..."+strconv.Itoa(i))
 		if _, err := r.tg.Send(msg); err != nil {
-			return output.MessageID, fmt.Errorf("send msg: %v", err)
+			return output.MessageID, fmt.Errorf("send msg: %w", err)
 		}
 		util.Sleep(1 * time.Second)
 	}
@@ -70,14 +71,14 @@ func (r *Session) checkBloopsSendMsg(player *model.Player) (int, error) {
 
 func (r *Session) sendDroppedBloopsesMsg(player *model.Player, bloops *resource.Bloops) error {
 	{
-		msg := tgbotapi.NewStickerShare(player.ChatId, resource.BloopsStickerDropBloops)
+		msg := tgbotapi.NewStickerShare(player.ChatID, resource.BloopsStickerDropBloops)
 		if _, err := r.tg.Send(msg); err != nil {
-			return fmt.Errorf("send msg: %v", err)
+			return fmt.Errorf("send msg: %w", err)
 		}
 	}
 	util.Sleep(1 * time.Second)
 	{
-		msg := tgbotapi.NewMessage(player.ChatId, r.renderDropBloopsMsg(bloops))
+		msg := tgbotapi.NewMessage(player.ChatID, r.renderDropBloopsMsg(bloops))
 		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(resource.TextChallengeBtnDataAnswer, resource.TextChallengeBtnDataAnswer),
@@ -87,13 +88,13 @@ func (r *Session) sendDroppedBloopsesMsg(player *model.Player, bloops *resource.
 		msg.ParseMode = tgbotapi.ModeMarkdown
 		output, err := r.tg.Send(msg)
 		if err != nil {
-			return fmt.Errorf("send msg: %v", err)
+			return fmt.Errorf("send msg: %w", err)
 		}
 
 		r.registerCbHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 			if query.Data == resource.TextChallengeBtnDataAnswer {
 				if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextChallengeBtnDataAnswer)); err != nil {
-					return fmt.Errorf("send answer: %v", err)
+					return fmt.Errorf("send answer: %w", err)
 				}
 				r.startCh <- struct{}{}
 			}
@@ -113,9 +114,9 @@ func (r *Session) sendDroppedBloopsesMsg(player *model.Player, bloops *resource.
 func (r *Session) sendLetterMsg(player *model.Player) error {
 	buf := strpool.Get()
 
-	output, err := r.tg.Send(tgbotapi.NewMessage(player.ChatId, resource.TextStartLetterMsg))
+	output, err := r.tg.Send(tgbotapi.NewMessage(player.ChatID, resource.TextStartLetterMsg))
 	if err != nil {
-		return fmt.Errorf("send msg: %v", err)
+		return fmt.Errorf("send msg: %w", err)
 	}
 
 	sndCh := make(chan string, 1)
@@ -123,8 +124,8 @@ func (r *Session) sendLetterMsg(player *model.Player) error {
 	g := errgroup.Group{}
 	g.Go(func() error {
 		for msg := range sndCh {
-			if _, err := r.tg.Send(tgbotapi.NewEditMessageText(player.ChatId, output.MessageID, msg)); err != nil {
-				return fmt.Errorf("send msg: %v", err)
+			if _, err := r.tg.Send(tgbotapi.NewEditMessageText(player.ChatID, output.MessageID, msg)); err != nil {
+				return fmt.Errorf("send msg: %w", err)
 			}
 		}
 
@@ -149,7 +150,7 @@ func (r *Session) sendLetterMsg(player *model.Player) error {
 	buf.Reset()
 	strpool.Put(buf)
 
-	r.syncBroadcast(r.renderStartHelpMsg(player, sentLetter), player.UserId)
+	r.syncBroadcast(r.renderStartHelpMsg(player, sentLetter), player.UserID)
 
 	close(sndCh)
 
@@ -162,7 +163,7 @@ func (r *Session) sendLetterMsg(player *model.Player) error {
 
 // send ready -> set -> go steps
 func (r *Session) sendReadyMsg(player *model.Player) error {
-	var messageId int
+	var messageID int
 	buf := strpool.Get()
 	defer func() {
 		buf.Reset()
@@ -172,14 +173,14 @@ func (r *Session) sendReadyMsg(player *model.Player) error {
 	buf.WriteString(emoji.Keycap3.String())
 	buf.WriteString(" ...")
 	{
-		msg := tgbotapi.NewMessage(player.ChatId, buf.String())
+		msg := tgbotapi.NewMessage(player.ChatID, buf.String())
 		msg.ParseMode = tgbotapi.ModeMarkdown
 
 		output, err := r.tg.Send(msg)
 		if err != nil {
-			return fmt.Errorf("send msg: %v", err)
+			return fmt.Errorf("send msg: %w", err)
 		}
-		messageId = output.MessageID
+		messageID = output.MessageID
 		util.Sleep(1 * time.Second)
 	}
 
@@ -187,10 +188,10 @@ func (r *Session) sendReadyMsg(player *model.Player) error {
 	buf.WriteString(emoji.Keycap2.String())
 	buf.WriteString(" На старт")
 	{
-		msg := tgbotapi.NewEditMessageText(player.ChatId, messageId, buf.String())
+		msg := tgbotapi.NewEditMessageText(player.ChatID, messageID, buf.String())
 		msg.ParseMode = tgbotapi.ModeMarkdown
 		if _, err := r.tg.Send(msg); err != nil {
-			return fmt.Errorf("send msg: %v", err)
+			return fmt.Errorf("send msg: %w", err)
 		}
 
 		util.Sleep(1 * time.Second)
@@ -201,10 +202,10 @@ func (r *Session) sendReadyMsg(player *model.Player) error {
 	buf.WriteString(" Внимание")
 
 	{
-		msg := tgbotapi.NewEditMessageText(player.ChatId, messageId, buf.String())
+		msg := tgbotapi.NewEditMessageText(player.ChatID, messageID, buf.String())
 		msg.ParseMode = tgbotapi.ModeMarkdown
 		if _, err := r.tg.Send(msg); err != nil {
-			return fmt.Errorf("send msg: %v", err)
+			return fmt.Errorf("send msg: %w", err)
 		}
 
 		util.Sleep(1 * time.Second)
@@ -215,10 +216,10 @@ func (r *Session) sendReadyMsg(player *model.Player) error {
 	buf.WriteString(" Марш!")
 
 	{
-		msg := tgbotapi.NewEditMessageText(player.ChatId, messageId, buf.String())
+		msg := tgbotapi.NewEditMessageText(player.ChatID, messageID, buf.String())
 		msg.ParseMode = tgbotapi.ModeMarkdown
 		if _, err := r.tg.Send(msg); err != nil {
-			return fmt.Errorf("send msg: %v", err)
+			return fmt.Errorf("send msg: %w", err)
 		}
 	}
 
@@ -226,7 +227,7 @@ func (r *Session) sendReadyMsg(player *model.Player) error {
 }
 
 func (r *Session) sendFreezeTimerMsg(player *model.Player, secs int) (int, error) {
-	var messageId int
+	var messageID int
 	buf := strpool.Get()
 	defer func() {
 		buf.Reset()
@@ -237,7 +238,7 @@ func (r *Session) sendFreezeTimerMsg(player *model.Player, secs int) (int, error
 	buf.WriteString(" ")
 	buf.WriteString(strconv.Itoa(secs))
 	buf.WriteString(" сек")
-	msg := tgbotapi.NewMessage(player.ChatId, resource.TextStopButton)
+	msg := tgbotapi.NewMessage(player.ChatID, resource.TextStopButton)
 	msg.ParseMode = tgbotapi.ModeMarkdown
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -248,14 +249,14 @@ func (r *Session) sendFreezeTimerMsg(player *model.Player, secs int) (int, error
 
 	output, err := r.tg.Send(msg)
 	if err != nil {
-		return messageId, fmt.Errorf("send msg: %v", err)
+		return messageID, fmt.Errorf("send msg: %w", err)
 	}
 
 	return output.MessageID, nil
 }
 
 // formatting stop, timer button and send it
-func (r *Session) sendWorkingTimerMsg(player *model.Player, messageId, secs int) error {
+func (r *Session) sendWorkingTimerMsg(player *model.Player, messageID, secs int) error {
 	buf := strpool.Get()
 	defer func() {
 		buf.Reset()
@@ -268,8 +269,8 @@ func (r *Session) sendWorkingTimerMsg(player *model.Player, messageId, secs int)
 	buf.WriteString(" сек")
 
 	msg := tgbotapi.NewEditMessageReplyMarkup(
-		player.ChatId,
-		messageId,
+		player.ChatID,
+		messageID,
 		tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(buf.String(), resource.TextTimerBtnData),
@@ -279,7 +280,7 @@ func (r *Session) sendWorkingTimerMsg(player *model.Player, messageId, secs int)
 	)
 
 	if _, err := r.tg.Send(msg); err != nil {
-		return fmt.Errorf("send msg: %v", err)
+		return fmt.Errorf("send msg: %w", err)
 	}
 
 	return nil
@@ -296,15 +297,15 @@ func (r *Session) sendVotesMsg(voteMessages map[int64]int) error {
 	// creating a voting system and defining callbacks for voting
 	for _, player := range r.Players {
 		if player.IsPlaying() && !player.Offline {
-			msg := tgbotapi.NewMessage(player.ChatId, resource.TextVoteMsg)
+			msg := tgbotapi.NewMessage(player.ChatID, resource.TextVoteMsg)
 			msg.ReplyMarkup = markup
 			// sending the thumbs up and thumbs down buttons
 			output, err := r.tg.Send(msg)
 			if err != nil {
-				return fmt.Errorf("send msg: %v", err)
+				return fmt.Errorf("send msg: %w", err)
 			}
 			// registering callbacks for voting
-			voteMessages[player.ChatId] = output.MessageID
+			voteMessages[player.ChatID] = output.MessageID
 			r.registerCbHandler(output.MessageID, func(query *tgbotapi.CallbackQuery) error {
 				switch query.Data {
 				case resource.TextThumbUp:
@@ -315,7 +316,7 @@ func (r *Session) sendVotesMsg(voteMessages map[int64]int) error {
 				}
 
 				if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, query.Data)); err != nil {
-					return fmt.Errorf("send answer msg: %v", err)
+					return fmt.Errorf("send answer msg: %w", err)
 				}
 
 				return nil
@@ -329,10 +330,10 @@ func (r *Session) sendVotesMsg(voteMessages map[int64]int) error {
 func (r *Session) sendChangingVotesMsg(voteMessages map[int64]int) error {
 	r.mtx.RLock()
 	// send all users changes in votes so that all players can see the overall result
-	for chatId, messageId := range voteMessages {
+	for chatID, messageID := range voteMessages {
 		msg := tgbotapi.NewEditMessageReplyMarkup(
-			chatId,
-			messageId,
+			chatID,
+			messageID,
 			tgbotapi.NewInlineKeyboardMarkup(
 				tgbotapi.NewInlineKeyboardRow(
 					thumbUpButton(r.activeVote.thumbUp),
@@ -342,7 +343,7 @@ func (r *Session) sendChangingVotesMsg(voteMessages map[int64]int) error {
 		)
 
 		if _, err := r.tg.Send(msg); err != nil {
-			return fmt.Errorf("send msg: %v", err)
+			return fmt.Errorf("send msg: %w", err)
 		}
 	}
 	r.mtx.RUnlock()
@@ -364,9 +365,9 @@ func (r *Session) sendStartSticker() error {
 	defer r.mtx.RUnlock()
 	for _, player := range r.Players {
 		if player.IsPlaying() && !player.Offline {
-			msg := tgbotapi.NewStickerShare(player.ChatId, resource.BloopsStickerBlockFinished)
+			msg := tgbotapi.NewStickerShare(player.ChatID, resource.BloopsStickerBlockFinished)
 			if _, err := r.tg.Send(msg); err != nil {
-				return fmt.Errorf("send msg: %v", err)
+				return fmt.Errorf("send msg: %w", err)
 			}
 		}
 	}
@@ -378,11 +379,7 @@ func (r *Session) sendCrashMsg() {
 	r.syncBroadcast(resource.TextBroadcastCrashMsg)
 }
 
-const (
-	maxSmallCellsRow = 6
-	maxLargeCellsRow = 3
-	maxXlCellsRow    = 2
-)
+const maxXlCellsRow = 2
 
 const (
 	treasuresNum = 3
@@ -390,22 +387,26 @@ const (
 	attempts     = 1
 )
 
+// nolint
 func newOpenedReward() *openedReward {
 	return &openedReward{items: map[int]struct{}{}}
 }
 
+// nolint
 type openedReward struct {
 	mtx sync.RWMutex
 
 	items map[int]struct{}
 }
 
+// nolint
 func (o *openedReward) assign(n int) {
 	o.mtx.Lock()
 	defer o.mtx.Unlock()
 	o.items[n] = struct{}{}
 }
 
+// nolint
 func (o *openedReward) exist(n int) bool {
 	o.mtx.RLock()
 	defer o.mtx.RUnlock()
@@ -413,12 +414,14 @@ func (o *openedReward) exist(n int) bool {
 	return ok
 }
 
+// nolint
 func (o *openedReward) equal(n int) bool {
 	o.mtx.RLock()
 	defer o.mtx.RUnlock()
 	return len(o.items) == n
 }
 
+// nolint
 func (r *Session) sendChoiceBloopsMsg(ctx context.Context, player *model.Player) error {
 	bloops := make([]string, rewardsNum)
 
@@ -452,11 +455,11 @@ func (r *Session) sendChoiceBloopsMsg(ctx context.Context, player *model.Player)
 		}
 	}
 
-	msg := tgbotapi.NewMessage(player.ChatId, "Выбери карту, тебе может попасться блюпс")
+	msg := tgbotapi.NewMessage(player.ChatID, "Выбери карту, тебе может попасться блюпс")
 	msg.ReplyMarkup = markup
 	output, err := r.tg.Send(msg)
 	if err != nil {
-		return fmt.Errorf("send msg: %v", err)
+		return fmt.Errorf("send msg: %w", err)
 	}
 
 	opened := newOpenedReward()
@@ -472,7 +475,7 @@ func (r *Session) sendChoiceBloopsMsg(ctx context.Context, player *model.Player)
 				delete(r.msgCallback, output.MessageID)
 				r.mtx.Unlock()
 
-				if _, err := r.tg.Send(tgbotapi.NewDeleteMessage(player.ChatId, output.MessageID)); err != nil {
+				if _, err := r.tg.Send(tgbotapi.NewDeleteMessage(player.ChatID, output.MessageID)); err != nil {
 					logger.Errorf("send msg: %v", err)
 				}
 
@@ -486,7 +489,7 @@ func (r *Session) sendChoiceBloopsMsg(ctx context.Context, player *model.Player)
 
 		n, err := strconv.Atoi(query.Data)
 		if err != nil {
-			return fmt.Errorf("strconv: %v", err)
+			return fmt.Errorf("strconv: %w", err)
 		}
 
 		mtx.RLock()
@@ -500,7 +503,7 @@ func (r *Session) sendChoiceBloopsMsg(ctx context.Context, player *model.Player)
 
 		mtx.RUnlock()
 		if _, err := r.tg.AnswerCallbackQuery(cbConfig); err != nil {
-			return fmt.Errorf("send answer: %v", err)
+			return fmt.Errorf("send answer: %w", err)
 		}
 
 		opened.assign(n)
@@ -525,8 +528,8 @@ func (r *Session) sendChoiceBloopsMsg(ctx context.Context, player *model.Player)
 			markup.InlineKeyboard = append(markup.InlineKeyboard, row)
 		}
 
-		if _, err := r.tg.Send(tgbotapi.NewEditMessageReplyMarkup(player.ChatId, output.MessageID, markup)); err != nil {
-			return fmt.Errorf("send msg: %v", err)
+		if _, err := r.tg.Send(tgbotapi.NewEditMessageReplyMarkup(player.ChatID, output.MessageID, markup)); err != nil {
+			return fmt.Errorf("send msg: %w", err)
 		}
 
 		return nil

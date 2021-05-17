@@ -3,6 +3,7 @@ package database
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/bloops-games/bloops/internal/byteutil"
 	"github.com/bloops-games/bloops/internal/cache"
 	"github.com/bloops-games/bloops/internal/database"
@@ -10,7 +11,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-var NotFoundErr = fmt.Errorf("not found")
+var ErrNotFound = fmt.Errorf("not found")
 
 const bucket = "users"
 
@@ -41,11 +42,11 @@ func (db *DB) cachedValue(key int64, fn fetchFn) (model.User, error) {
 	}
 
 	if len(bytes) == 0 {
-		return u, NotFoundErr
+		return u, ErrNotFound
 	}
 
 	if err := json.Unmarshal(bytes, &u); err != nil {
-		return u, fmt.Errorf("unmarshal: %v", err)
+		return u, fmt.Errorf("unmarshal: %w", err)
 	}
 
 	if db.cache != nil {
@@ -60,13 +61,13 @@ func (db *DB) FetchByUsername(username string) (model.User, error) {
 	if err := db.sDB.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
-			return NotFoundErr
+			return ErrNotFound
 		}
 		c := b.Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			var u model.User
 			if err := json.Unmarshal(v, &u); err != nil {
-				return fmt.Errorf("json unmarshal error, %q", err)
+				return fmt.Errorf("json unmarshal error, %w", err)
 			}
 			if u.Username == username {
 				user = u
@@ -74,8 +75,8 @@ func (db *DB) FetchByUsername(username string) (model.User, error) {
 				return nil
 			}
 		}
-		if user.Id == 0 {
-			return NotFoundErr
+		if user.ID == 0 {
+			return ErrNotFound
 		}
 		return nil
 	}); err != nil {
@@ -84,16 +85,16 @@ func (db *DB) FetchByUsername(username string) (model.User, error) {
 	return user, nil
 }
 
-func (db *DB) Fetch(userId int64) (model.User, error) {
+func (db *DB) Fetch(userID int64) (model.User, error) {
 	var u model.User
-	pk := byteutil.EncodeInt64ToBytes(userId)
-	u, err := db.cachedValue(userId, func(key int64) ([]byte, error) {
+	pk := byteutil.EncodeInt64ToBytes(userID)
+	u, err := db.cachedValue(userID, func(key int64) ([]byte, error) {
 		var bytes []byte
 
 		if err := db.sDB.DB.View(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(bucket))
 			if b == nil {
-				return NotFoundErr
+				return ErrNotFound
 			}
 			bytes = b.Get(pk)
 			return nil
@@ -103,7 +104,6 @@ func (db *DB) Fetch(userId int64) (model.User, error) {
 
 		return bytes, nil
 	})
-
 	if err != nil {
 		return u, fmt.Errorf("cached value: %w", err)
 	}
@@ -117,7 +117,7 @@ func (db *DB) Store(m model.User) error {
 	if err != nil {
 		return err
 	}
-	pk := byteutil.EncodeInt64ToBytes(m.Id)
+	pk := byteutil.EncodeInt64ToBytes(m.ID)
 	if err := db.sDB.DB.Update(func(tx *bolt.Tx) error {
 		b = tx.Bucket([]byte(bucket))
 		if b == nil {
@@ -134,11 +134,11 @@ func (db *DB) Store(m model.User) error {
 		}
 
 		if db.cache != nil {
-			db.cache.Add(m.Id, m)
+			db.cache.Add(m.ID, m)
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("update transaction error: %v", err)
+		return fmt.Errorf("update transaction error: %w", err)
 	}
 
 	return nil

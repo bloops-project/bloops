@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+
 	"github.com/bloops-games/bloops/internal/bloopsbot"
 	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	"github.com/bloops-games/bloops/internal/cache/cachelru"
@@ -15,8 +18,6 @@ import (
 	"github.com/bloops-games/bloops/internal/shutdown"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/kelseyhightower/envconfig"
-	"net/http"
-	"os"
 )
 
 var version string
@@ -28,8 +29,8 @@ func main() {
 		resource.GreetingCLI,
 		resource.ProjectName,
 		version,
-		resource.TgBloopUrl,
-		resource.GithubBloopUrl,
+		resource.TgBloopURL,
+		resource.GithubBloopURL,
 	)
 
 	ctx, done := shutdown.New()
@@ -37,12 +38,12 @@ func main() {
 
 	config := bloopsbot.Config{}
 	if err := envconfig.Process("", &config); err != nil {
-		logging.DefaultLogger().Fatalf("processing the config: %v", err)
+		logging.DefaultLogger().Fatalf("processing the config: %w", err)
 	}
 
 	logger := logging.NewLogger(config.Debug)
 	if err := realMain(ctx, config, done); err != nil {
-		logger.Fatalf("main.realMain: %v", err)
+		logger.Fatalf("main.realMain: %w", err)
 	}
 }
 
@@ -54,8 +55,8 @@ func realMain(ctx context.Context, config bloopsbot.Config, done func()) error {
 		resource.GreetingCLI,
 		resource.ProjectName,
 		version,
-		resource.TgBloopUrl,
-		resource.GithubBloopUrl,
+		resource.TgBloopURL,
+		resource.GithubBloopURL,
 	)
 
 	var token string
@@ -70,7 +71,7 @@ func realMain(ctx context.Context, config bloopsbot.Config, done func()) error {
 		}
 		if token == "" {
 			_, _ = fmt.Fprintf(os.Stdout, "bot token not found, please visit %s to register your bot and get a token",
-				resource.BotFatherUrl)
+				resource.BotFatherURL)
 			continue
 		}
 
@@ -106,7 +107,7 @@ func realMain(ctx context.Context, config bloopsbot.Config, done func()) error {
 	if username == "" {
 		return fmt.Errorf(
 			"bot token not found, please visit %s to register your bot and get a token",
-			resource.BotFatherUrl,
+			resource.BotFatherURL,
 		)
 	}
 
@@ -114,35 +115,35 @@ func realMain(ctx context.Context, config bloopsbot.Config, done func()) error {
 	if err != nil {
 		if err.Error() == "Not Found" {
 			_, _ = fmt.Fprintf(os.Stdout, "Bot token not found\n")
-			return fmt.Errorf("bot token not found: %v", err)
+			return fmt.Errorf("bot token not found: %w", err)
 		}
-		return fmt.Errorf("bot api: %v", err)
+		return fmt.Errorf("bot api: %w", err)
 	}
 
 	tg.Debug = config.Debug
 
 	_, _ = fmt.Fprint(os.Stdout, "Authorization in telegram was successful: ", tg.Self.UserName, "\n")
 
-	db, err := database.NewFromEnv(ctx, &config.Db)
+	db, err := database.NewFromEnv(ctx, &config.DB)
 	if err != nil {
-		return fmt.Errorf("new database from env: %v", err)
+		return fmt.Errorf("new database from env: %w", err)
 	}
 
 	defer db.Close(ctx)
 
 	userCache, err := cachelru.NewLRU(config.CacheSize)
 	if err != nil {
-		return fmt.Errorf("can not create lru cache: %v", err)
+		return fmt.Errorf("can not create lru cache: %w", err)
 	}
 
 	statCache, err := cachelru.NewLRU(config.CacheSize)
 	if err != nil {
-		return fmt.Errorf("can not create lru cache: %v", err)
+		return fmt.Errorf("can not create lru cache: %w", err)
 	}
 
 	srv, err := server.New(config.Port)
 	if err != nil {
-		return fmt.Errorf("server.New: %v", err)
+		return fmt.Errorf("server.New: %w", err)
 	}
 
 	mux := http.NewServeMux()
@@ -164,7 +165,7 @@ func realMain(ctx context.Context, config bloopsbot.Config, done func()) error {
 
 	manager := bloopsbot.NewManager(tg, &config, userdb.New(db, userCache), statDb.New(db, statCache), stateDb.New(db))
 	if err := manager.Run(ctx); err != nil {
-		return fmt.Errorf("run: %v", err)
+		return fmt.Errorf("run: %w", err)
 	}
 
 	return nil

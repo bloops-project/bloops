@@ -23,17 +23,44 @@ type Letter struct {
 
 var (
 	Letters = []Letter{
-		{Text: "А", Status: true}, {Text: "Б", Status: true}, {Text: "В", Status: true}, {Text: "Г", Status: true},
-		{Text: "Д", Status: true}, {Text: "Е", Status: true}, {Text: "Ж", Status: true}, {Text: "З", Status: true},
-		{Text: "И", Status: true}, {Text: "К", Status: true}, {Text: "Л", Status: true}, {Text: "М", Status: true},
-		{Text: "Н", Status: true}, {Text: "О", Status: true}, {Text: "П", Status: true}, {Text: "Р", Status: true},
-		{Text: "С", Status: true}, {Text: "Т", Status: true}, {Text: "У", Status: true}, {Text: "Ф", Status: true},
-		{Text: "Х", Status: true}, {Text: "Ц"}, {Text: "Ч"}, {Text: "Ш"}, {Text: "Э"}, {Text: "Ю"}, {Text: "Я"}}
+		{Text: "А", Status: true},
+		{Text: "Б", Status: true},
+		{Text: "В", Status: true},
+		{Text: "Г", Status: true},
+		{Text: "Д", Status: true},
+		{Text: "Е", Status: true},
+		{Text: "Ж", Status: true},
+		{Text: "З", Status: true},
+		{Text: "И", Status: true},
+		{Text: "К", Status: true},
+		{Text: "Л", Status: true},
+		{Text: "М", Status: true},
+		{Text: "Н", Status: true},
+		{Text: "О", Status: true},
+		{Text: "П", Status: true},
+		{Text: "Р", Status: true},
+		{Text: "С", Status: true},
+		{Text: "Т", Status: true},
+		{Text: "У", Status: true},
+		{Text: "Ф", Status: true},
+		{Text: "Х", Status: true},
+		{Text: "Ц"},
+		{Text: "Ч"},
+		{Text: "Ш"},
+		{Text: "Э"},
+		{Text: "Ю"},
+		{Text: "Я"},
+	}
 
 	Categories = []Category{
-		{Text: "Страна"}, {Text: "Город", Status: true}, {Text: "Овощ или фрукт", Status: true},
-		{Text: "Имя", Status: true}, {Text: "Знаменитость"}, {Text: "Бренд", Status: true},
-		{Text: "Животное", Status: true}, {Text: "Термин"},
+		{Text: "Страна"},
+		{Text: "Город", Status: true},
+		{Text: "Овощ или фрукт", Status: true},
+		{Text: "Имя", Status: true},
+		{Text: "Знаменитость"},
+		{Text: "Бренд", Status: true},
+		{Text: "Животное", Status: true},
+		{Text: "Термин"},
 		{Text: "Любое слово"},
 	}
 

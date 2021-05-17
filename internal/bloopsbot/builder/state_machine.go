@@ -31,6 +31,7 @@ func (s *stateMachine) curr() stateKind {
 	return s.state
 }
 
+// nolint
 func (s *stateMachine) back() {
 	s.state = s.transitions.Back().Value.(stateKind)
 }
@@ -47,6 +48,7 @@ func (s *stateMachine) isMin() bool {
 	return s.state == s.min
 }
 
+// nolint
 func (s *stateMachine) seek(kind stateKind) {
 	for e := s.transitions.Front(); e != nil; e = e.Next() {
 		if e.Value == kind {

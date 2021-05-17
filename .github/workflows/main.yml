@@ -3,25 +3,119 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  regular_build:
+  pre-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Notification - start pipeline
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          args: Build started
+
+  test:
+    needs: pre-build
     runs-on: ubuntu-latest
 
     steps:
+      - name: Cancel previous builds
+        uses: styfle/cancel-workflow-action@0.7.0
+        with:
+          access_token: ${{ github.token }}
+
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: ^1.15
+          go-version: ^1.16
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
 
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-test-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-test-
+            ${{ runner.os }}-go-
+
+      - name: Unit tests
+        run: go test -count=1 -race -timeout=10m ./... -coverprofile=coverage.out
+
+  lint:
+    needs: pre-build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cancel previous builds
+        uses: styfle/cancel-workflow-action@0.7.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.16
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-test-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-test-
+            ${{ runner.os }}-go-
+
+      - name: go-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: 'v1.40.1'
+          skip-go-installation: true
+          skip-pkg-cache: true
+          skip-build-cache: true
+
+  build:
+    needs: [ test, lint]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cancel previous builds
+        uses: styfle/cancel-workflow-action@0.7.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.16
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-test-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-test-
+            ${{ runner.os }}-go-
+
       - name: Build
         run: go build ./cmd/bloops-srv
-
-      - name: Test
-        run: go test -v ./...
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
@@ -60,10 +154,14 @@ jobs:
           tags: |
             robotomize/bloops:latest
 
-      - name: Send a message to Telegram
-        uses: robotomize/notify-telegram@v0.2.4
+  post-build:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Notification - build complete
+        uses: appleboy/telegram-action@master
         with:
-          chat: ${{ secrets.TELEGRAM_TO }}
+          to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
-          status: ${{ job.status }}
-          message: "Bloops build complete"
+          args: Build complete

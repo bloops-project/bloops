@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/bloops-games/bloops/internal/logging"
 	"net"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/bloops-games/bloops/internal/logging"
 )
 
 type Server struct {

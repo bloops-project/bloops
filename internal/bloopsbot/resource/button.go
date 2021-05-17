@@ -2,6 +2,7 @@ package resource
 
 import (
 	"fmt"
+
 	"github.com/bloops-games/bloops/internal/hashutil"
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -26,6 +27,7 @@ var (
 	BuilderInlineDoneText = emoji.ChequeredFlag.String() + " Завершить"
 	BuilderInlineDoneData = fmt.Sprintf("%s:%s", BuilderInlineDoneText, hashutil.SerializedSha1FromTime())
 )
+
 var (
 	// keyboard buttons
 	CreateButton      = tgbotapi.NewKeyboardButton(CreateButtonText)

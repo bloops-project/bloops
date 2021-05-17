@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+
 	"github.com/bloops-games/bloops/internal/logging"
 	bolt "go.etcd.io/bbolt"
 )
@@ -17,7 +18,7 @@ func NewFromEnv(ctx context.Context, config *Config) (*DB, error) {
 
 	db, err := bolt.Open(config.FilePath, 0600, nil)
 	if err != nil {
-		return nil, fmt.Errorf("creating connection Db: %v", err)
+		return nil, fmt.Errorf("creating connection DB: %w", err)
 	}
 
 	return &DB{DB: db}, nil
@@ -28,7 +29,7 @@ func (db *DB) Close(ctx context.Context) error {
 	logger.Infof("closing DB connection")
 
 	if err := db.DB.Close(); err != nil {
-		return fmt.Errorf("error close Db connection: %v", err)
+		return fmt.Errorf("error close DB connection: %w", err)
 	}
 
 	return nil

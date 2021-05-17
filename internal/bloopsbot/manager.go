@@ -4,11 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"runtime"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/bloops-games/bloops/internal/bloopsbot/builder"
 	"github.com/bloops-games/bloops/internal/bloopsbot/match"
 	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	"github.com/bloops-games/bloops/internal/bloopsbot/util"
-	stateDb "github.com/bloops-games/bloops/internal/database/matchstate/database"
+	stateDB "github.com/bloops-games/bloops/internal/database/matchstate/database"
 	matchstateModel "github.com/bloops-games/bloops/internal/database/matchstate/model"
 	statDb "github.com/bloops-games/bloops/internal/database/stat/database"
 	statModel "github.com/bloops-games/bloops/internal/database/stat/model"
@@ -16,24 +23,20 @@ import (
 	userModel "github.com/bloops-games/bloops/internal/database/user/model"
 	"github.com/bloops-games/bloops/internal/logging"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"net/http"
-	"runtime"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
-type commandCbHandlerFunc func(string) error
-type commandHandlerFunc = func(userModel.User, int64) error
-type commandMiddlewareFunc = func(userModel.User, int64) (bool, error)
+type (
+	commandCbHandlerFunc  func(string) error
+	commandHandlerFunc    = func(userModel.User, int64) error
+	commandMiddlewareFunc = func(userModel.User, int64) (bool, error)
+)
 
 var (
-	TgResponseTypeNotFoundErr = fmt.Errorf("tg response not found")
-	CmdTextHandlerNotFoundErr = fmt.Errorf("command text handler not found")
+	ErrTelegramResponseTypeNotFound = fmt.Errorf("telegram response not found")
+	ErrCmdTextHandlerNotFound       = fmt.Errorf("command text handler not found")
 )
 
-func NewManager(tg *tgbotapi.BotAPI, config *Config, userDb *userDb.DB, statDb *statDb.DB, stateDb *stateDb.DB) *manager {
+func NewManager(tg *tgbotapi.BotAPI, config *Config, userDB *userDb.DB, statDB *statDb.DB, stateDB *stateDB.DB) *manager {
 	return &manager{
 		tg:                   tg,
 		config:               config,
@@ -42,9 +45,9 @@ func NewManager(tg *tgbotapi.BotAPI, config *Config, userDb *userDb.DB, statDb *
 		matchSessions:        map[int64]*match.Session{},
 		commandCbHandlers:    map[int64]commandCbHandlerFunc{},
 		commandHandlers:      map[string]commandHandler{},
-		userDb:               userDb,
-		statDb:               statDb,
-		stateDb:              stateDb,
+		userDB:               userDB,
+		statDB:               statDB,
+		stateDB:              stateDB,
 	}
 }
 
@@ -53,11 +56,11 @@ type commandHandler struct {
 	middlewareFn []commandMiddlewareFunc
 }
 
-func (t commandHandler) execute(u userModel.User, chatId int64) error {
+func (t commandHandler) execute(u userModel.User, chatID int64) error {
 	for _, f := range t.middlewareFn {
-		ok, err := f(u, chatId)
+		ok, err := f(u, chatID)
 		if err != nil {
-			return fmt.Errorf("command handler execute: %v", err)
+			return fmt.Errorf("command handler execute: %w", err)
 		}
 
 		if !ok {
@@ -65,7 +68,7 @@ func (t commandHandler) execute(u userModel.User, chatId int64) error {
 		}
 	}
 
-	return t.commandFn(u, chatId)
+	return t.commandFn(u, chatID)
 }
 
 type manager struct {
@@ -73,9 +76,9 @@ type manager struct {
 
 	tg     *tgbotapi.BotAPI
 	config *Config
-	// key: userId active building session
+	// key: UserID active building session
 	userBuildingSessions map[int64]*builder.Session
-	// key: userId active playing session
+	// key: UserID active playing session
 	userMatchSessions map[int64]*match.Session
 	// key: generated int64 code
 	matchSessions map[int64]*match.Session
@@ -84,9 +87,9 @@ type manager struct {
 	// command handlers
 	commandHandlers map[string]commandHandler
 
-	userDb     *userDb.DB
-	statDb     *statDb.DB
-	stateDb    *stateDb.DB
+	userDB     *userDb.DB
+	statDB     *statDb.DB
+	stateDB    *stateDB.DB
 	cancel     func()
 	ctxSess    context.Context
 	cancelSess func()
@@ -103,15 +106,15 @@ func (m *manager) Run(ctx context.Context) error {
 	m.cancel = cancel
 	m.ctxSess, m.cancelSess = context.WithCancel(context.Background())
 
-	if m.config.BotWebhookHookUrl != "" {
-		_, err := m.tg.SetWebhook(tgbotapi.NewWebhook(m.config.BotWebhookHookUrl + m.config.BotToken))
+	if m.config.BotWebhookHookURL != "" {
+		_, err := m.tg.SetWebhook(tgbotapi.NewWebhook(m.config.BotWebhookHookURL + m.config.BotToken))
 		if err != nil {
-			return fmt.Errorf("tg bot set webhook: %v", err)
+			return fmt.Errorf("tg bot set webhook: %w", err)
 		}
 
 		info, err := m.tg.GetWebhookInfo()
 		if err != nil {
-			return fmt.Errorf("get webhook info: %v", err)
+			return fmt.Errorf("get webhook info: %w", err)
 		}
 
 		if info.LastErrorDate != 0 {
@@ -128,7 +131,7 @@ func (m *manager) Run(ctx context.Context) error {
 	} else {
 		resp, err := m.tg.RemoveWebhook()
 		if err != nil {
-			return fmt.Errorf("remove webhook: %v", err)
+			return fmt.Errorf("remove webhook: %w", err)
 		}
 
 		if !resp.Ok {
@@ -142,7 +145,7 @@ func (m *manager) Run(ctx context.Context) error {
 		upd.Timeout = int(m.config.TgBotPollTimeout.Seconds())
 		up, err := m.tg.GetUpdatesChan(upd)
 		if err != nil {
-			return fmt.Errorf("tg get updates chan: %v", err)
+			return fmt.Errorf("tg get updates chan: %w", err)
 		}
 		updates = up
 	}
@@ -164,7 +167,7 @@ func (m *manager) Run(ctx context.Context) error {
 
 	// deserialize not completed sessions
 	if err := m.deserialize(); err != nil {
-		return fmt.Errorf("deserialize: %v", err)
+		return fmt.Errorf("deserialize: %w", err)
 	}
 
 	wg := &sync.WaitGroup{}
@@ -203,7 +206,7 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 				}
 
 				if err := m.route(ctx, u, update); err != nil {
-					if !errors.Is(err, match.ValidationErr) {
+					if !errors.Is(err, match.ErrValidation) {
 						logger.Errorf("handle command query: %v", err)
 					}
 				}
@@ -226,30 +229,30 @@ func (m *manager) route(ctx context.Context, u userModel.User, upd tgbotapi.Upda
 
 	if handler, ok := m.commandHandler(upd.Message.Text); ok {
 		if err := handler.execute(u, upd.Message.Chat.ID); err != nil {
-			return fmt.Errorf("execute command text handler: %v", err)
+			return fmt.Errorf("execute command text handler: %w", err)
 		}
 
 		return nil
 	}
 
-	if cb, ok := m.commandCbHandler(u.Id); ok {
+	if cb, ok := m.commandCbHandler(u.ID); ok {
 		if err := cb(upd.Message.Text); err != nil {
-			return fmt.Errorf("execute cb: %v", err)
+			return fmt.Errorf("execute cb: %w", err)
 		}
 
 		return nil
 	}
 
-	if session, ok := m.userBuildingSession(u.Id); ok {
+	if session, ok := m.userBuildingSession(u.ID); ok {
 		if err := session.Execute(upd); err != nil {
-			return fmt.Errorf("execute building session: %v", err)
+			return fmt.Errorf("execute building session: %w", err)
 		}
 
 		return nil
 	}
 
-	if session, ok := m.userMatchSession(u.Id); ok {
-		if err := session.Execute(u.Id, upd); err != nil {
+	if session, ok := m.userMatchSession(u.ID); ok {
+		if err := session.Execute(u.ID, upd); err != nil {
 			return fmt.Errorf("execute playing session: %w", err)
 		}
 
@@ -268,15 +271,15 @@ func (m *manager) handleCallbackQuery(ctx context.Context, u userModel.User, upd
 		upd.CallbackQuery.Data,
 	)
 
-	if session, ok := m.userBuildingSession(u.Id); ok {
+	if session, ok := m.userBuildingSession(u.ID); ok {
 		if err := session.Execute(upd); err != nil {
-			return fmt.Errorf("execute building cb: %v", err)
+			return fmt.Errorf("execute building cb: %w", err)
 		}
 	}
 
-	if session, ok := m.userMatchSession(u.Id); ok {
-		if err := session.Execute(u.Id, upd); err != nil {
-			return fmt.Errorf("execute playing cb: %v", err)
+	if session, ok := m.userMatchSession(u.ID); ok {
+		if err := session.Execute(u.ID, upd); err != nil {
+			return fmt.Errorf("execute playing cb: %w", err)
 		}
 	}
 
@@ -290,7 +293,7 @@ func (m *manager) buildGameConfig(session *builder.Session, code int64) match.Co
 		Tg:         m.tg,
 		DoneFn:     m.matchDoneFn,
 		WarnFn:     m.matchWarnFn,
-		AuthorId:   session.AuthorId,
+		AuthorID:   session.AuthorID,
 		AuthorName: session.AuthorName,
 		RoundsNum:  session.RoundsNum,
 		RoundTime:  session.RoundTime,
@@ -323,7 +326,7 @@ func (m *manager) buildGameConfig(session *builder.Session, code int64) match.Co
 func (m *manager) builderWarnFn(session *builder.Session) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	delete(m.userBuildingSessions, session.AuthorId)
+	delete(m.userBuildingSessions, session.AuthorID)
 
 	return nil
 }
@@ -332,12 +335,12 @@ func (m *manager) builderDoneFn(session *builder.Session) error {
 	defer func() {
 		m.mtx.Lock()
 		defer m.mtx.Unlock()
-		delete(m.userBuildingSessions, session.AuthorId)
+		delete(m.userBuildingSessions, session.AuthorID)
 	}()
 
 	code, err := util.GenerateCodeHash()
 	if err != nil {
-		return fmt.Errorf("hash: %v", err)
+		return fmt.Errorf("hash: %w", err)
 	}
 
 	for {
@@ -351,21 +354,21 @@ func (m *manager) builderDoneFn(session *builder.Session) error {
 		}
 	}
 
-	msg := tgbotapi.NewMessage(session.ChatId, resource.TextCreationGameCompletedSuccessfulMsg)
+	msg := tgbotapi.NewMessage(session.ChatID, resource.TextCreationGameCompletedSuccessfulMsg)
 	msg.ParseMode = tgbotapi.ModeMarkdown
 	if _, err := m.tg.Send(msg); err != nil {
-		return fmt.Errorf("send msg: %v", err)
+		return fmt.Errorf("send msg: %w", err)
 	}
 
-	if _, err := m.tg.Send(tgbotapi.NewStickerShare(session.ChatId, resource.GenerateSticker(true))); err != nil {
-		return fmt.Errorf("send msg: %v", err)
+	if _, err := m.tg.Send(tgbotapi.NewStickerShare(session.ChatID, resource.GenerateSticker(true))); err != nil {
+		return fmt.Errorf("send msg: %w", err)
 	}
 
-	msg = tgbotapi.NewMessage(session.ChatId, strconv.Itoa(int(code)))
+	msg = tgbotapi.NewMessage(session.ChatID, strconv.Itoa(int(code)))
 	msg.ParseMode = tgbotapi.ModeMarkdown
 	msg.ReplyMarkup = resource.CommonButtons
 	if _, err := m.tg.Send(msg); err != nil {
-		return fmt.Errorf("send msg: %v", err)
+		return fmt.Errorf("send msg: %w", err)
 	}
 
 	return nil
@@ -376,11 +379,11 @@ func (m *manager) matchWarnFn(session *match.Session) error {
 	defer m.mtx.Unlock()
 
 	if err := m.serialize(session); err != nil {
-		return fmt.Errorf("serialize match session: %v", err)
+		return fmt.Errorf("serialize match session: %w", err)
 	}
 
 	for _, player := range session.Players {
-		delete(m.userMatchSessions, player.UserId)
+		delete(m.userMatchSessions, player.UserID)
 	}
 
 	delete(m.matchSessions, session.Code)
@@ -392,10 +395,10 @@ func (m *manager) matchDoneFn(session *match.Session) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	if err := m.appendStat(session); err != nil {
-		return fmt.Errorf("append stat: %v", err)
+		return fmt.Errorf("append stat: %w", err)
 	}
 	for _, player := range session.Players {
-		delete(m.userMatchSessions, player.UserId)
+		delete(m.userMatchSessions, player.UserID)
 	}
 
 	delete(m.matchSessions, session.Code)
@@ -416,39 +419,39 @@ func (m *manager) commandHandler(cmd string) (commandHandler, bool) {
 	return handler, ok
 }
 
-func (m *manager) registerCommandCbHandler(userId int64, fn commandCbHandlerFunc) {
+func (m *manager) registerCommandCbHandler(userID int64, fn commandCbHandlerFunc) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	m.commandCbHandlers[userId] = fn
+	m.commandCbHandlers[userID] = fn
 }
 
-func (m *manager) commandCbHandler(userId int64) (func(msg string) error, bool) {
+func (m *manager) commandCbHandler(userID int64) (func(msg string) error, bool) {
 	m.mtx.RLock()
 	defer m.mtx.RUnlock()
-	cb, ok := m.commandCbHandlers[userId]
+	cb, ok := m.commandCbHandlers[userID]
 	return cb, ok
 }
 
-func (m *manager) resetUserSessions(userId int64) {
+func (m *manager) resetUserSessions(userID int64) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	delete(m.userBuildingSessions, userId)
-	delete(m.userMatchSessions, userId)
-	delete(m.commandCbHandlers, userId)
+	delete(m.userBuildingSessions, userID)
+	delete(m.userMatchSessions, userID)
+	delete(m.commandCbHandlers, userID)
 }
 
-func (m *manager) userBuildingSession(userId int64) (*builder.Session, bool) {
+func (m *manager) userBuildingSession(userID int64) (*builder.Session, bool) {
 	m.mtx.RLock()
 	defer m.mtx.RUnlock()
-	session, ok := m.userBuildingSessions[userId]
+	session, ok := m.userBuildingSessions[userID]
 
 	return session, ok
 }
 
-func (m *manager) userMatchSession(userId int64) (*match.Session, bool) {
+func (m *manager) userMatchSession(userID int64) (*match.Session, bool) {
 	m.mtx.RLock()
 	defer m.mtx.RUnlock()
-	session, ok := m.userMatchSessions[userId]
+	session, ok := m.userMatchSessions[userID]
 
 	return session, ok
 }
@@ -490,17 +493,17 @@ func (m *manager) recvUser(upd tgbotapi.Update) (userModel.User, error) {
 	case upd.Message != nil:
 		tgUser = upd.Message.From
 	default:
-		return u, TgResponseTypeNotFoundErr
+		return u, ErrTelegramResponseTypeNotFound
 	}
 
-	u, err := m.userDb.Fetch(int64(tgUser.ID))
+	u, err := m.userDB.Fetch(int64(tgUser.ID))
 	if err != nil {
-		if errors.Is(err, userDb.NotFoundErr) {
+		if errors.Is(err, userDb.ErrNotFound) {
 			username := strings.TrimPrefix(tgUser.UserName, "@")
 			adminUsername := m.config.Admin
 
 			newUser := userModel.User{
-				Id:           int64(tgUser.ID),
+				ID:           int64(tgUser.ID),
 				FirstName:    tgUser.FirstName,
 				LastName:     tgUser.LastName,
 				LanguageCode: tgUser.LanguageCode,
@@ -510,19 +513,19 @@ func (m *manager) recvUser(upd tgbotapi.Update) (userModel.User, error) {
 				CreatedAt:    time.Now(),
 			}
 
-			if err := m.userDb.Store(newUser); err != nil {
-				return u, fmt.Errorf("userdb store: %v", err)
+			if err := m.userDB.Store(newUser); err != nil {
+				return u, fmt.Errorf("userdb store: %w", err)
 			}
 			u = newUser
 		}
 	}
 
-	stat, err := m.statDb.FetchRateStat(u.Id)
+	stat, err := m.statDB.FetchRateStat(u.ID)
 	if err != nil {
-		if errors.Is(err, statDb.NotFoundErr) {
+		if errors.Is(err, statDb.ErrNotFound) {
 			return u, nil
 		}
-		return u, fmt.Errorf("fetch profile stat: %v", err)
+		return u, fmt.Errorf("fetch profile stat: %w", err)
 	}
 
 	u.Stars = stat.Stars
@@ -538,7 +541,7 @@ func NewMatchSessionFromSerialized(
 	warnFn func(session *match.Session) error,
 ) *match.Session {
 	c := match.Config{
-		AuthorId:   ser.AuthorId,
+		AuthorID:   ser.AuthorID,
 		AuthorName: ser.AuthorName,
 		RoundsNum:  ser.RoundsNum,
 		RoundTime:  ser.RoundTime,
@@ -568,7 +571,7 @@ func NewMatchSessionFromSerialized(
 func (m *manager) serialize(session *match.Session) error {
 	s := matchstateModel.State{
 		Timeout:      session.Config.Timeout,
-		AuthorId:     session.Config.AuthorId,
+		AuthorID:     session.Config.AuthorID,
 		AuthorName:   session.Config.AuthorName,
 		RoundsNum:    session.Config.RoundsNum,
 		RoundTime:    session.Config.RoundTime,
@@ -588,17 +591,17 @@ func (m *manager) serialize(session *match.Session) error {
 	copy(s.Bloopses, session.Config.Bloopses)
 	copy(s.Players, session.Players)
 
-	if err := m.stateDb.Add(s); err != nil {
-		return fmt.Errorf("state db add: %v", err)
+	if err := m.stateDB.Add(s); err != nil {
+		return fmt.Errorf("state db add: %w", err)
 	}
 
 	return nil
 }
 
 func (m *manager) deserialize() error {
-	states, err := m.stateDb.FetchAll()
-	if err != nil && !errors.Is(err, stateDb.EntryNotFoundErr) {
-		return fmt.Errorf("stat db fetch all: %v", err)
+	states, err := m.stateDB.FetchAll()
+	if err != nil && !errors.Is(err, stateDB.ErrEntryNotFound) {
+		return fmt.Errorf("stat db fetch all: %w", err)
 	}
 	m.mtx.Lock()
 	for _, state := range states {
@@ -607,7 +610,7 @@ func (m *manager) deserialize() error {
 		m.matchSessions[session.Config.Code] = session
 		for _, player := range session.Players {
 			if !player.Offline {
-				m.userMatchSessions[player.UserId] = session
+				m.userMatchSessions[player.UserID] = session
 			}
 		}
 	}
@@ -619,9 +622,9 @@ func (m *manager) deserialize() error {
 	m.mtx.Unlock()
 
 	if len(states) > 0 {
-		if err := m.stateDb.Clean(); err != nil {
-			if !errors.Is(err, stateDb.BucketNotFoundErr) {
-				return fmt.Errorf("state db clean: %v", err)
+		if err := m.stateDB.Clean(); err != nil {
+			if !errors.Is(err, stateDB.ErrBucketNotFound) {
+				return fmt.Errorf("state db clean: %w", err)
 			}
 		}
 	}
@@ -631,16 +634,16 @@ func (m *manager) deserialize() error {
 
 func (m *manager) appendStat(session *match.Session) error {
 	favorites := session.Favorites()
-	var stats []statModel.Stat
+	stats := make([]statModel.Stat, 0)
 
 	for _, player := range session.Players {
-		stat := statModel.NewStat(player.UserId)
+		stat := statModel.NewStat(player.UserID)
 		if player.Offline {
 			continue
 		}
 
 		for _, score := range favorites {
-			if player.UserId == score.Player.UserId {
+			if player.UserID == score.Player.UserID {
 				stat.Conclusion = statModel.StatusFavorite
 			}
 		}
@@ -651,8 +654,10 @@ func (m *manager) appendStat(session *match.Session) error {
 		stat.RoundsNum = session.Config.RoundsNum
 		stat.PlayersNum = len(session.Players)
 
-		var bestDuration, worstDuration, sumDuration, durationNum time.Duration = 2 << 31, 0, 0, 0
-		var bestPoints, worstPoints, sumPoints, pointsNum = 0, 2 << 28, 0, 0
+		var (
+			bestDuration, worstDuration, sumDuration, durationNum time.Duration = 2 << 31, 0, 0, 0
+			bestPoints, worstPoints, sumPoints, pointsNum                       = 0, 2 << 28, 0, 0
+		)
 
 		for _, rate := range player.Rates {
 			if !rate.Bloops {
@@ -698,8 +703,8 @@ func (m *manager) appendStat(session *match.Session) error {
 	}
 
 	for _, stat := range stats {
-		if err := m.statDb.Add(stat); err != nil {
-			return fmt.Errorf("stat db add: %v", err)
+		if err := m.statDB.Add(stat); err != nil {
+			return fmt.Errorf("stat db add: %w", err)
 		}
 	}
 

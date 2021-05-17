@@ -2,13 +2,14 @@ package bloopsbot
 
 import (
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	statModel "github.com/bloops-games/bloops/internal/database/stat/model"
 	userModel "github.com/bloops-games/bloops/internal/database/user/model"
 	"github.com/bloops-games/bloops/internal/strpool"
 	"github.com/enescakir/emoji"
-	"strconv"
-	"time"
 )
 
 func renderProfile(u userModel.User, stat statModel.AggregationStat) string {

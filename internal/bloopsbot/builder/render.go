@@ -2,10 +2,11 @@ package builder
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"strconv"
 )
 
 const (
@@ -53,6 +54,7 @@ func (bs *Session) renderInlineLetters() tgbotapi.InlineKeyboardMarkup {
 	return markup
 }
 
+// nolint
 func (bs *Session) renderRoundsTime() tgbotapi.InlineKeyboardMarkup {
 	markup := tgbotapi.NewInlineKeyboardMarkup()
 	row := tgbotapi.NewInlineKeyboardRow()
@@ -73,8 +75,10 @@ func (bs *Session) renderRoundsTime() tgbotapi.InlineKeyboardMarkup {
 func (bs *Session) renderRoundsNum() tgbotapi.InlineKeyboardMarkup {
 	markup := tgbotapi.NewInlineKeyboardMarkup()
 	row := tgbotapi.NewInlineKeyboardRow()
-	var numFn = func(n int) string {
+
+	numFn := func(n int) string {
 		var str string
+
 		switch n {
 		case 1:
 			str = emoji.Keycap1.String()

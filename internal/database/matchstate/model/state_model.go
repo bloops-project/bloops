@@ -1,13 +1,14 @@
 package model
 
 import (
-	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	"time"
+
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 )
 
 type State struct {
 	Timeout    time.Duration     `json:"timeout"`
-	AuthorId   int64             `json:"authorId"`
+	AuthorID   int64             `json:"authorId"`
 	AuthorName string            `json:"authorName"`
 	RoundsNum  int               `json:"roundsNum"`
 	RoundTime  int               `json:"roundTime"`

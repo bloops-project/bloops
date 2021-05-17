@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/bloops-games/bloops/internal/byteutil"
 	"github.com/bloops-games/bloops/internal/database"
 	"github.com/bloops-games/bloops/internal/database/matchstate/model"
@@ -13,8 +14,8 @@ import (
 const prefix = "states"
 
 var (
-	EntryNotFoundErr  = fmt.Errorf("not found")
-	BucketNotFoundErr = fmt.Errorf("bucket not found")
+	ErrEntryNotFound  = fmt.Errorf("not found")
+	ErrBucketNotFound = fmt.Errorf("bucket not found")
 )
 
 func New(db *database.DB) *DB {
@@ -31,18 +32,18 @@ func (db *DB) FetchAll() ([]model.State, error) {
 	if err := db.sDB.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(prefix))
 		if b == nil {
-			return EntryNotFoundErr
+			return ErrEntryNotFound
 		}
 
 		if err := b.ForEach(func(k, v []byte) error {
 			var metric model.State
 			if err := json.Unmarshal(v, &metric); err != nil {
-				return fmt.Errorf("json unmarshal error, %q", err)
+				return fmt.Errorf("json unmarshal error, %w", err)
 			}
 			list = append(list, metric)
 			return nil
 		}); err != nil {
-			return fmt.Errorf("bucket for each: %v", err)
+			return fmt.Errorf("bucket for each: %w", err)
 		}
 
 		return nil
@@ -56,20 +57,20 @@ func (db *DB) FetchAll() ([]model.State, error) {
 func (db *DB) Clean() error {
 	tx, err := db.sDB.DB.Begin(true)
 	if err != nil {
-		return fmt.Errorf("starting transaction: %v", err)
+		return fmt.Errorf("starting transaction: %w", err)
 	}
 
-	defer tx.Rollback()
+	defer tx.Rollback() // nolint
 
 	if err := tx.DeleteBucket([]byte(prefix)); err != nil {
 		if errors.Is(err, bolt.ErrBucketNotFound) {
-			return BucketNotFoundErr
+			return ErrBucketNotFound
 		}
-		return fmt.Errorf("delete bucket: %v", err)
+		return fmt.Errorf("delete bucket: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("committing transaction: %v", err)
+		return fmt.Errorf("committing transaction: %w", err)
 	}
 
 	return nil
@@ -78,10 +79,10 @@ func (db *DB) Clean() error {
 func (db *DB) Add(m model.State) error {
 	tx, err := db.sDB.DB.Begin(true)
 	if err != nil {
-		return fmt.Errorf("starting transaction: %v", err)
+		return fmt.Errorf("starting transaction: %w", err)
 	}
 
-	defer tx.Rollback()
+	defer tx.Rollback() // nolint
 
 	b := tx.Bucket([]byte(prefix))
 	if b == nil {
@@ -94,7 +95,7 @@ func (db *DB) Add(m model.State) error {
 
 	bytes, err := json.Marshal(m)
 	if err != nil {
-		return fmt.Errorf("marshal: %v", err)
+		return fmt.Errorf("marshal: %w", err)
 	}
 
 	if err := b.Put(byteutil.EncodeInt64ToBytes(m.Code), bytes); err != nil {
@@ -102,7 +103,7 @@ func (db *DB) Add(m model.State) error {
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("committing transaction: %v", err)
+		return fmt.Errorf("committing transaction: %w", err)
 	}
 
 	return nil

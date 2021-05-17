@@ -4,6 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
+	"runtime"
+	"sort"
+	"sync"
+	"time"
+
 	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	"github.com/bloops-games/bloops/internal/bloopsbot/util"
 	"github.com/bloops-games/bloops/internal/database/matchstate/model"
@@ -11,12 +18,6 @@ import (
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/valyala/fastrand"
-	"math"
-	"math/rand"
-	"runtime"
-	"sort"
-	"sync"
-	"time"
 )
 
 const bloopsMaxWeight = 3
@@ -38,8 +39,8 @@ const (
 )
 
 var (
-	ContextFatalClosedErr = fmt.Errorf("context closed")
-	ValidationErr         = fmt.Errorf("validation errors")
+	ErrContextFatalClosed = fmt.Errorf("context closed")
+	ErrValidation         = fmt.Errorf("validation errors")
 )
 
 func newVote() *vote {
@@ -165,7 +166,7 @@ func (r *Session) AlivePlayersLen() int {
 	return n
 }
 
-func (r *Session) Execute(userId int64, upd tgbotapi.Update) error {
+func (r *Session) Execute(userID int64, upd tgbotapi.Update) error {
 	if upd.CallbackQuery != nil {
 		if err := r.executeCbQuery(upd.CallbackQuery); err != nil {
 			return fmt.Errorf("execute msgCallback query: %w", err)
@@ -173,7 +174,7 @@ func (r *Session) Execute(userId int64, upd tgbotapi.Update) error {
 	}
 
 	if upd.Message != nil {
-		if err := r.executeMessageQuery(userId, upd.Message); err != nil {
+		if err := r.executeMessageQuery(userID, upd.Message); err != nil {
 			return fmt.Errorf("execute message query: %w", err)
 		}
 	}
@@ -181,49 +182,49 @@ func (r *Session) Execute(userId int64, upd tgbotapi.Update) error {
 	return nil
 }
 
-func (r *Session) isPossibleStart(userId int64, cmd string) bool {
-	return r.State == StateKindWaiting && cmd == resource.StartButtonText && r.Config.AuthorId == userId
+func (r *Session) isPossibleStart(userID int64, cmd string) bool {
+	return r.State == StateKindWaiting && cmd == resource.StartButtonText && r.Config.AuthorID == userID
 }
 
-func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) error {
-	if r.isPossibleStart(userId, query.Text) {
-		if player, ok := r.findPlayer(userId); ok {
-			msg := tgbotapi.NewMessage(player.ChatId, resource.TextGameStarted)
+func (r *Session) executeMessageQuery(userID int64, query *tgbotapi.Message) error {
+	if r.isPossibleStart(userID, query.Text) {
+		if player, ok := r.findPlayer(userID); ok {
+			msg := tgbotapi.NewMessage(player.ChatID, resource.TextGameStarted)
 			msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
 				tgbotapi.NewKeyboardButtonRow(resource.RatingButton, resource.RulesButton),
 				tgbotapi.NewKeyboardButtonRow(resource.LeaveMenuButton, resource.GameSettingButton),
 			)
 			msg.ParseMode = tgbotapi.ModeMarkdown
 			if _, err := r.tg.Send(msg); err != nil {
-				return fmt.Errorf("send msg: %v", err)
+				return fmt.Errorf("send msg: %w", err)
 			}
 		}
 
 		if err := r.sendStartSticker(); err != nil {
-			return fmt.Errorf("send start sticker: %v", err)
+			return fmt.Errorf("send start sticker: %w", err)
 		}
 
-		r.asyncBroadcast(resource.TextGameStarted, userId)
+		r.asyncBroadcast(resource.TextGameStarted, userID)
 
 		r.stateCh <- StateKindPlaying
 	}
 
 	if query.Text == resource.RatingButtonText {
-		if player, ok := r.findPlayer(userId); ok {
-			msg := tgbotapi.NewMessage(player.ChatId, r.renderScores())
+		if player, ok := r.findPlayer(userID); ok {
+			msg := tgbotapi.NewMessage(player.ChatID, r.renderScores())
 			msg.ParseMode = tgbotapi.ModeMarkdown
 			if _, err := r.tg.Send(msg); err != nil {
-				return fmt.Errorf("send msg: %v", err)
+				return fmt.Errorf("send msg: %w", err)
 			}
 		}
 	}
 
 	if query.Text == resource.GameSettingButtonText {
-		if player, ok := r.findPlayer(userId); ok {
-			msg := tgbotapi.NewMessage(player.ChatId, r.renderSetting())
+		if player, ok := r.findPlayer(userID); ok {
+			msg := tgbotapi.NewMessage(player.ChatID, r.renderSetting())
 			msg.ParseMode = tgbotapi.ModeMarkdown
 			if _, err := r.tg.Send(msg); err != nil {
-				return fmt.Errorf("send msg: %v", err)
+				return fmt.Errorf("send msg: %w", err)
 			}
 		}
 	}
@@ -234,23 +235,23 @@ func (r *Session) executeMessageQuery(userId int64, query *tgbotapi.Message) err
 func (r *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 	if cb, ok := r.cbHandler(query.Message.MessageID); ok {
 		if err := cb(query); err != nil {
-			return fmt.Errorf("msgCallback: %v", err)
+			return fmt.Errorf("msgCallback: %w", err)
 		}
 		return nil
 	}
 	return fmt.Errorf("match.Session: msgCallback not found")
 }
 
-func (r *Session) registerCbHandler(messageId int, fn QueryCallbackHandlerFn) {
+func (r *Session) registerCbHandler(messageID int, fn QueryCallbackHandlerFn) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
-	r.msgCallback[messageId] = fn
+	r.msgCallback[messageID] = fn
 }
 
-func (r *Session) cbHandler(messageId int) (QueryCallbackHandlerFn, bool) {
+func (r *Session) cbHandler(messageID int) (QueryCallbackHandlerFn, bool) {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
-	cb, ok := r.msgCallback[messageId]
+	cb, ok := r.msgCallback[messageID]
 	return cb, ok
 }
 
@@ -306,8 +307,8 @@ func (r *Session) loop(ctx context.Context) {
 				r.ChangeState(StateKindPlaying)
 				logger.Infof("The game %d changed its State to playing, author: %s", r.Config.Code, r.Config.AuthorName)
 				if err := r.playing(ctx); err != nil {
-					if !errors.Is(err, ContextFatalClosedErr) {
-						logger.Error(fmt.Errorf("playing: %v", err))
+					if !errors.Is(err, ErrContextFatalClosed) {
+						logger.Errorf("playing: %v", err)
 						r.sendCrashMsg()
 						r.Stop()
 					}
@@ -361,7 +362,7 @@ func (r *Session) shutdown(ctx context.Context) {
 					continue OuterLoop
 				}
 
-				msg := tgbotapi.NewMessage(player.ChatId, resource.TextMatchWarnMsg)
+				msg := tgbotapi.NewMessage(player.ChatID, resource.TextMatchWarnMsg)
 				msg.ParseMode = tgbotapi.ModeMarkdown
 				if _, err := r.tg.Send(msg); err != nil {
 					continue OuterLoop
@@ -408,14 +409,14 @@ PlayerLoop:
 		util.Sleep(2 * time.Second)
 		if r.Config.IsBloops() {
 			logger.Infof("Checking bloops, game session %d, author: %s", r.Config.Code, r.Config.AuthorName)
-			msg := tgbotapi.NewMessage(player.ChatId, "Проверяем, выпадет ли блюпс?")
+			msg := tgbotapi.NewMessage(player.ChatID, "Проверяем, выпадет ли блюпс?")
 			if _, err := r.tg.Send(msg); err != nil {
-				return fmt.Errorf("send msg: %v", err)
+				return fmt.Errorf("send msg: %w", err)
 			}
 
-			messageId, err := r.checkBloopsSendMsg(player)
+			messageID, err := r.checkBloopsSendMsg(player)
 			if err != nil {
-				return fmt.Errorf("send ready set go for bloopses: %v", err)
+				return fmt.Errorf("send ready set go for bloopses: %w", err)
 			}
 
 			if r.dice() {
@@ -427,9 +428,9 @@ PlayerLoop:
 				)
 
 				rate.Bloops = true
-				msg := tgbotapi.NewDeleteMessage(player.ChatId, messageId)
+				msg := tgbotapi.NewDeleteMessage(player.ChatID, messageID)
 				if _, err := r.tg.Send(msg); err != nil {
-					return fmt.Errorf("send msg: %v", err)
+					return fmt.Errorf("send msg: %w", err)
 				}
 
 				nextBloops, _ := r.randBloopses()
@@ -439,7 +440,7 @@ PlayerLoop:
 				rate.BloopsName = bloops.Name
 
 				if err := r.sendDroppedBloopsesMsg(player, bloops); err != nil {
-					return fmt.Errorf("send bloopsbot: %v", err)
+					return fmt.Errorf("send bloopsbot: %w", err)
 				}
 
 				logger.Infof(
@@ -473,20 +474,20 @@ PlayerLoop:
 							player.FormatFirstName(),
 							defaultInactiveFatalTime,
 						))
-						r.RemovePlayer(player.UserId)
+						r.RemovePlayer(player.UserID)
 						continue PlayerLoop
 					case <-ctx.Done():
-						return ContextFatalClosedErr
-					case userId := <-r.passCh:
-						if userId == player.UserId {
+						return ErrContextFatalClosed
+					case userID := <-r.passCh:
+						if userID == player.UserID {
 							continue PlayerLoop
 						}
 					}
 				}
 			} else {
-				msg := tgbotapi.NewEditMessageText(player.ChatId, messageId, emoji.GameDie.String()+" Блюпс не выпал")
+				msg := tgbotapi.NewEditMessageText(player.ChatID, messageID, emoji.GameDie.String()+" Блюпс не выпал")
 				if _, err := r.tg.Send(msg); err != nil {
-					return fmt.Errorf("send msg: %v", err)
+					return fmt.Errorf("send msg: %w", err)
 				}
 				util.Sleep(1 * time.Second)
 			}
@@ -499,7 +500,7 @@ PlayerLoop:
 		)
 		// send start button and register start button handler
 		if err := r.sendStartMsg(player); err != nil {
-			return fmt.Errorf("send start msg: %v", err)
+			return fmt.Errorf("send start msg: %w", err)
 		}
 
 		timerFatal := time.NewTimer(defaultInactiveFatalTime * time.Second)
@@ -525,12 +526,12 @@ PlayerLoop:
 					player.FormatFirstName(),
 					defaultInactiveFatalTime,
 				))
-				r.RemovePlayer(player.UserId)
+				r.RemovePlayer(player.UserID)
 				continue PlayerLoop
 			case <-ctx.Done():
-				return ContextFatalClosedErr
-			case userId := <-r.passCh:
-				if userId == player.UserId {
+				return ErrContextFatalClosed
+			case userID := <-r.passCh:
+				if userID == player.UserID {
 					continue PlayerLoop
 				}
 			}
@@ -544,7 +545,7 @@ PlayerLoop:
 		)
 		//  generating the letter that the words begin with
 		if err := r.sendLetterMsg(player); err != nil {
-			return fmt.Errorf("generate and send letter msg: %v", err)
+			return fmt.Errorf("generate and send letter msg: %w", err)
 		}
 
 		logger.Infof(
@@ -555,7 +556,7 @@ PlayerLoop:
 		)
 
 		if err := r.sendReadyMsg(player); err != nil {
-			return fmt.Errorf("send ready msg: %v", err)
+			return fmt.Errorf("send ready msg: %w", err)
 		}
 
 		logger.Infof(
@@ -623,8 +624,8 @@ PlayerLoop:
 			}
 		}
 
-		if _, err := r.tg.Send(tgbotapi.NewStickerShare(player.ChatId, resource.GenerateSticker(rate.Points > 0))); err != nil {
-			return fmt.Errorf("send sticker: %v", err)
+		if _, err := r.tg.Send(tgbotapi.NewStickerShare(player.ChatID, resource.GenerateSticker(rate.Points > 0))); err != nil {
+			return fmt.Errorf("send sticker: %w", err)
 		}
 
 		r.mtx.Lock()
@@ -649,14 +650,14 @@ PlayerLoop:
 		)
 		util.Sleep(2 * time.Second)
 		// send data on the round players
-		r.sndCh <- tgbotapi.NewMessage(player.ChatId, fmt.Sprintf(resource.TextStopPlayerRoundMsg, rate.Points))
+		r.sndCh <- tgbotapi.NewMessage(player.ChatID, fmt.Sprintf(resource.TextStopPlayerRoundMsg, rate.Points))
 		logger.Infof(
 			"Game session %d, author: %s, round closed for player %s",
 			r.Config.Code,
 			r.Config.AuthorName,
 			player.User.FirstName,
 		)
-		r.asyncBroadcast(r.renderPlayerGetPoints(player, rate.Points), player.UserId)
+		r.asyncBroadcast(r.renderPlayerGetPoints(player, rate.Points), player.UserID)
 		util.Sleep(5 * time.Second)
 	}
 }
@@ -664,22 +665,22 @@ PlayerLoop:
 // updating the player's timer and registering callbacks to stop the timer
 func (r *Session) ticker(ctx context.Context, player *model.Player) (int, time.Time, error) {
 	secs := r.currRoundSeconds
-	messageId, err := r.sendFreezeTimerMsg(player, secs)
+	messageID, err := r.sendFreezeTimerMsg(player, secs)
 	if err != nil {
-		return 0, time.Time{}, fmt.Errorf("send timer msg: %v", err)
+		return 0, time.Time{}, fmt.Errorf("send timer msg: %w", err)
 	}
 
 	// register stop button handler
-	r.registerCbHandler(messageId, func(query *tgbotapi.CallbackQuery) error {
+	r.registerCbHandler(messageID, func(query *tgbotapi.CallbackQuery) error {
 		if query.Data == resource.TextStopBtnData {
 			if _, err := r.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.TextStopBtnDataAnswer)); err != nil {
-				return fmt.Errorf("send answer msg: %v", err)
+				return fmt.Errorf("send answer msg: %w", err)
 			}
 
 			r.stopCh <- struct{}{}
 			r.mtx.Lock()
 			defer r.mtx.Unlock()
-			delete(r.msgCallback, messageId)
+			delete(r.msgCallback, messageID)
 		}
 
 		return nil
@@ -691,9 +692,9 @@ OuterLoop:
 	for {
 		select {
 		case <-ctx.Done():
-			return 0, time.Time{}, ContextFatalClosedErr
-		case userId := <-r.passCh:
-			if userId == player.UserId {
+			return 0, time.Time{}, ErrContextFatalClosed
+		case userID := <-r.passCh:
+			if userID == player.UserID {
 				break OuterLoop
 			}
 		case <-r.stopCh:
@@ -703,8 +704,8 @@ OuterLoop:
 			secs--
 
 			// updating timer
-			if err := r.sendWorkingTimerMsg(player, messageId, secs); err != nil {
-				return 0, time.Time{}, fmt.Errorf("update timer msg: %v", err)
+			if err := r.sendWorkingTimerMsg(player, messageID, secs); err != nil {
+				return 0, time.Time{}, fmt.Errorf("update timer msg: %w", err)
 			}
 
 			if secs <= 0 {
@@ -725,7 +726,7 @@ func (r *Session) votes(ctx context.Context, rate *model.Rate) error {
 
 	// send vote buttons and register callbacks
 	if err := r.sendVotesMsg(voteMessages); err != nil {
-		return fmt.Errorf("broadcast vote buttons and register msgCallback: %v", err)
+		return fmt.Errorf("broadcast vote buttons and register msgCallback: %w", err)
 	}
 
 	timer := time.NewTimer(defaultInactiveVoteTime * time.Second)
@@ -736,13 +737,13 @@ VoteLoop:
 	for {
 		select {
 		case <-ctx.Done():
-			return ContextFatalClosedErr
+			return ErrContextFatalClosed
 		case <-timer.C:
 			break VoteLoop
 		case <-r.activeVote.pub:
 			// updating data in the voting buttons
 			if err := r.sendChangingVotesMsg(voteMessages); err != nil {
-				return fmt.Errorf("broadcast votes: %v", err)
+				return fmt.Errorf("broadcast votes: %w", err)
 			}
 			//  if all active players have voted, then we finish processing the votes
 			if r.didEveryoneVote() {
@@ -754,8 +755,8 @@ VoteLoop:
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	// deleting all vote callbacks
-	for _, messageId := range voteMessages {
-		delete(r.msgCallback, messageId)
+	for _, messageID := range voteMessages {
+		delete(r.msgCallback, messageID)
 	}
 
 	if r.activeVote.thumbUp < r.activeVote.thumbDown {
@@ -834,11 +835,11 @@ func (r *Session) didEveryoneVote() bool {
 	return r.activeVote.thumbUp+r.activeVote.thumbDown == playersNum
 }
 
-func (r *Session) findPlayer(userId int64) (*model.Player, bool) {
+func (r *Session) findPlayer(userID int64) (*model.Player, bool) {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 	for _, player := range r.Players {
-		if player.UserId == userId {
+		if player.UserID == userID {
 			return player, true
 		}
 	}
@@ -850,7 +851,7 @@ func (r *Session) findPlayer(userId int64) (*model.Player, bool) {
 func (r *Session) AddPlayer(player *model.Player) error {
 	if player, ok := r.addPlayer(player); ok {
 		registerPlayerMsg := fmt.Sprintf(resource.TextPlayerJoinedGameMsg, player.FormatFirstName())
-		r.asyncBroadcast(registerPlayerMsg, player.UserId)
+		r.asyncBroadcast(registerPlayerMsg, player.UserID)
 	}
 
 	return nil
@@ -862,7 +863,7 @@ func (r *Session) addPlayer(player *model.Player) (*model.Player, bool) {
 	defer r.mtx.Unlock()
 
 	for _, p := range r.Players {
-		if p.ChatId == player.ChatId && p.UserId == player.UserId && p.FormatFirstName() == player.FormatFirstName() {
+		if p.ChatID == player.ChatID && p.UserID == player.UserID && p.FormatFirstName() == player.FormatFirstName() {
 			if player.State == model.PlayerStateKindLeaving {
 				player.State = model.PlayerStateKindPlaying
 				return nil, true
@@ -878,25 +879,25 @@ func (r *Session) addPlayer(player *model.Player) (*model.Player, bool) {
 }
 
 // remove player from game and send asyncBroadcast message about it
-func (r *Session) RemovePlayer(userId int64) {
-	player, ok := r.findPlayer(userId)
+func (r *Session) RemovePlayer(userID int64) {
+	player, ok := r.findPlayer(userID)
 	if ok {
 		r.asyncBroadcast(fmt.Sprintf(resource.TextPlayerLeftGameMsg, player.FormatFirstName()))
-		r.removePlayer(userId)
+		r.removePlayer(userID)
 		if r.AlivePlayersLen() == 0 && r.getState() == StateKindFinished {
 			r.Stop()
 			return
 		}
-		r.passCh <- player.UserId
+		r.passCh <- player.UserID
 	}
 }
 
 // set PlayerStateKindLeaving status
-func (r *Session) removePlayer(userId int64) {
+func (r *Session) removePlayer(userID int64) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	for _, p := range r.Players {
-		if p.UserId == userId {
+		if p.UserID == userID {
 			p.State = model.PlayerStateKindLeaving
 		}
 	}
@@ -937,6 +938,7 @@ func (r *Session) randBloopses() (resource.Bloops, bool) {
 	return r.Config.Bloopses[0], true
 }
 
+// nolint
 func (r *Session) randWeightedBloopses() resource.Bloops {
 	var max float64 = -1
 	var result resource.Bloops
@@ -986,12 +988,12 @@ OuterLoop:
 		}
 
 		for i := range exclude {
-			if player.UserId == exclude[i] {
+			if player.UserID == exclude[i] {
 				continue OuterLoop
 			}
 		}
 
-		msg := tgbotapi.NewMessage(player.ChatId, msg)
+		msg := tgbotapi.NewMessage(player.ChatID, msg)
 		msg.ParseMode = tgbotapi.ModeMarkdown
 		if _, err := r.tg.Send(msg); err != nil {
 			continue OuterLoop
@@ -1010,12 +1012,12 @@ OuterLoop:
 		}
 
 		for i := range exclude {
-			if player.UserId == exclude[i] {
+			if player.UserID == exclude[i] {
 				continue OuterLoop
 			}
 		}
 
-		msg := tgbotapi.NewMessage(player.ChatId, msg)
+		msg := tgbotapi.NewMessage(player.ChatID, msg)
 		msg.ParseMode = tgbotapi.ModeMarkdown
 		r.sndCh <- msg
 	}

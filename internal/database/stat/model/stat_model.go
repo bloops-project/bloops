@@ -1,8 +1,9 @@
 package model
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Status string
@@ -12,13 +13,13 @@ const (
 	StatusParticipant Status = "participant"
 )
 
-func NewStat(userId int64) Stat {
-	return Stat{Id: uuid.New(), UserId: userId, Conclusion: StatusParticipant, CreatedAt: time.Now()}
+func NewStat(userID int64) Stat {
+	return Stat{ID: uuid.New(), UserID: userID, Conclusion: StatusParticipant, CreatedAt: time.Now()}
 }
 
 type Stat struct {
-	Id     uuid.UUID `json:"-"`
-	UserId int64     `json:"userId"`
+	ID     uuid.UUID `json:"-"`
+	UserID int64     `json:"userID"`
 
 	WorstDuration   time.Duration `json:"worstDuration"`
 	AverageDuration time.Duration `json:"averageDuration"`

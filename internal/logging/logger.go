@@ -2,9 +2,10 @@ package logging
 
 import (
 	"context"
+	"sync"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"sync"
 )
 
 type contextKey string
@@ -63,7 +64,6 @@ func NewLogger(debug bool) *zap.SugaredLogger {
 	}
 
 	logger, err := config.Build()
-
 	if err != nil {
 		logger = zap.NewNop()
 	}

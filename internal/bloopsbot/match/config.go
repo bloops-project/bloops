@@ -1,13 +1,14 @@
 package match
 
 import (
+	"time"
+
 	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"time"
 )
 
 type Config struct {
-	AuthorId   int64             `json:"authorId"`
+	AuthorID   int64             `json:"authorId"`
 	AuthorName string            `json:"authorName"`
 	RoundsNum  int               `json:"roundsNum"`
 	RoundTime  int               `json:"roundTime"`

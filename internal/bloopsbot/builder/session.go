@@ -3,12 +3,13 @@ package builder
 import (
 	"context"
 	"fmt"
-	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
-	"github.com/bloops-games/bloops/internal/logging"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
+	"github.com/bloops-games/bloops/internal/logging"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 const (
@@ -41,8 +42,8 @@ var stages = []stateKind{
 
 func NewSession(
 	tg *tgbotapi.BotAPI,
-	chatId int64,
-	authorId int64,
+	chatID int64,
+	authorID int64,
 	authorName string,
 	doneFn func(session *Session) error,
 	warnFn func(session *Session) error,
@@ -53,8 +54,8 @@ func NewSession(
 		tg:              tg,
 		state:           state,
 		messageCh:       make(chan struct{}, 1),
-		ChatId:          chatId,
-		AuthorId:        authorId,
+		ChatID:          chatID,
+		AuthorID:        authorID,
 		AuthorName:      authorName,
 		RoundsNum:       defaultRoundsNum,
 		RoundTime:       defaultRoundTime,
@@ -88,7 +89,7 @@ func NewSession(
 type Session struct {
 	mtx sync.RWMutex
 
-	AuthorId   int64
+	AuthorID   int64
 	AuthorName string
 	Categories []resource.Category
 	Letters    []resource.Letter
@@ -96,7 +97,7 @@ type Session struct {
 	RoundTime  int
 	Vote       bool
 	Bloops     bool
-	ChatId     int64
+	ChatID     int64
 	CreatedAt  time.Time
 
 	tg        *tgbotapi.BotAPI
@@ -104,7 +105,7 @@ type Session struct {
 	messageCh chan struct{}
 	sema      sync.Once
 
-	messageId int
+	messageID int
 
 	timeout         time.Duration
 	controlHandlers map[string]QueryCallbackHandlerFunc
@@ -137,13 +138,13 @@ func (bs *Session) Execute(upd tgbotapi.Update) error {
 
 	if upd.CallbackQuery != nil {
 		if err := bs.executeCbQuery(upd.CallbackQuery); err != nil {
-			return fmt.Errorf("execute cb query: %v", err)
+			return fmt.Errorf("execute cb query: %w", err)
 		}
 	}
 
 	if upd.Message != nil {
 		if err := bs.executeMessageQuery(upd.Message); err != nil {
-			return fmt.Errorf("execute message query: %v", err)
+			return fmt.Errorf("execute message query: %w", err)
 		}
 	}
 
@@ -157,9 +158,9 @@ func (bs *Session) executeMessageQuery(query *tgbotapi.Message) error {
 			Status: true,
 		})
 
-		msg := tgbotapi.NewEditMessageReplyMarkup(bs.ChatId, bs.messageId, bs.menuInlineButtons(bs.renderInlineCategories()))
+		msg := tgbotapi.NewEditMessageReplyMarkup(bs.ChatID, bs.messageID, bs.menuInlineButtons(bs.renderInlineCategories()))
 		if _, err := bs.tg.Send(msg); err != nil {
-			return fmt.Errorf("send msg: %v", err)
+			return fmt.Errorf("send msg: %w", err)
 		}
 	}
 
@@ -185,14 +186,14 @@ func (bs *Session) isControlCmd(queryData string) bool {
 }
 
 func (bs *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
-	if query.Message.MessageID != bs.messageId {
+	if query.Message.MessageID != bs.messageID {
 		return fmt.Errorf("callback with message id %d not found", query.Message.MessageID)
 	}
 
 	if bs.isControlCmd(query.Data) {
 		fn := bs.controlHandlers[query.Data]
 		if err := fn(query); err != nil {
-			return fmt.Errorf("execute control handler: %v", err)
+			return fmt.Errorf("execute control handler: %w", err)
 		}
 
 		return nil
@@ -205,7 +206,7 @@ func (bs *Session) executeCbQuery(query *tgbotapi.CallbackQuery) error {
 	}
 
 	if err := fn(query); err != nil {
-		return fmt.Errorf("action handle: %v", err)
+		return fmt.Errorf("action handle: %w", err)
 	}
 
 	return nil
@@ -222,58 +223,58 @@ func (bs *Session) loop(ctx context.Context) {
 			switch bs.state.curr() {
 			case stateKindCategories:
 				logger.Infof("Building session, sending categories, author %s", bs.AuthorName)
-				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextChooseCategories)
+				msg := tgbotapi.NewMessage(bs.ChatID, resource.TextChooseCategories)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderInlineCategories())
 				output, err := bs.tg.Send(msg)
 				if err != nil {
 					logger.Errorf("send categories: %v", err)
 				}
-				bs.messageId = output.MessageID
+				bs.messageID = output.MessageID
 			case stateKindRoundsNum:
 				logger.Infof("Building session, sending rounds number, author %s", bs.AuthorName)
-				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextChooseRoundsNum)
+				msg := tgbotapi.NewMessage(bs.ChatID, resource.TextChooseRoundsNum)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderRoundsNum())
 				output, err := bs.tg.Send(msg)
 				if err != nil {
 					logger.Errorf("send round num: %v", err)
 				}
-				bs.messageId = output.MessageID
+				bs.messageID = output.MessageID
 			case stateKindLetters:
 				logger.Infof("Building session, sending letters, author %s", bs.AuthorName)
-				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextDeleteComplexLetters)
+				msg := tgbotapi.NewMessage(bs.ChatID, resource.TextDeleteComplexLetters)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderInlineLetters())
 				output, err := bs.tg.Send(msg)
 				if err != nil {
 					logger.Errorf("send letters: %v", err)
 				}
-				bs.messageId = output.MessageID
+				bs.messageID = output.MessageID
 			case stateKindBloops:
 				logger.Infof("Building session, sending bloopses, author %s", bs.AuthorName)
-				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextBloopsAllowed)
+				msg := tgbotapi.NewMessage(bs.ChatID, resource.TextBloopsAllowed)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderInlineBloops())
 				output, err := bs.tg.Send(msg)
 				if err != nil {
 					logger.Errorf("send letters: %v", err)
 				}
-				bs.messageId = output.MessageID
+				bs.messageID = output.MessageID
 			case stateKindVote:
 				logger.Infof("Building session, sending vote, author %s", bs.AuthorName)
-				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextVoteAllowed)
+				msg := tgbotapi.NewMessage(bs.ChatID, resource.TextVoteAllowed)
 				msg.ReplyMarkup = bs.menuInlineButtons(bs.renderInlineVote())
 				output, err := bs.tg.Send(msg)
 				if err != nil {
 					logger.Errorf("send vote: %v", err)
 				}
-				bs.messageId = output.MessageID
+				bs.messageID = output.MessageID
 			case stateKindDone:
 				logger.Infof("Building session, sending done action, author %s", bs.AuthorName)
-				msg := tgbotapi.NewMessage(bs.ChatId, resource.TextConfigurationDone)
+				msg := tgbotapi.NewMessage(bs.ChatID, resource.TextConfigurationDone)
 				msg.ReplyMarkup = bs.menuInlineButtons(tgbotapi.NewInlineKeyboardMarkup())
 				output, err := bs.tg.Send(msg)
 				if err != nil {
 					logger.Errorf("send done: %v", err)
 				}
-				bs.messageId = output.MessageID
+				bs.messageID = output.MessageID
 			}
 		}
 	}
@@ -283,7 +284,7 @@ func (bs *Session) shutdown(ctx context.Context) bool {
 	logger := logging.FromContext(ctx)
 	if time.Since(bs.CreatedAt) <= bs.timeout {
 		if bs.state.state != stateKindDone {
-			if _, err := bs.tg.Send(tgbotapi.NewMessage(bs.AuthorId, resource.TextBuilderWarnMsg)); err != nil {
+			if _, err := bs.tg.Send(tgbotapi.NewMessage(bs.AuthorID, resource.TextBuilderWarnMsg)); err != nil {
 				logger.Errorf("send msg: %v", err)
 			}
 
@@ -304,7 +305,7 @@ func (bs *Session) shutdown(ctx context.Context) bool {
 func (bs *Session) clickOnPrev(query *tgbotapi.CallbackQuery) error {
 	bs.state.prev()
 	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.BuilderInlinePrevText)); err != nil {
-		return fmt.Errorf("send answer msg: %v", err)
+		return fmt.Errorf("send answer msg: %w", err)
 	}
 	bs.messageCh <- struct{}{}
 
@@ -314,7 +315,7 @@ func (bs *Session) clickOnPrev(query *tgbotapi.CallbackQuery) error {
 func (bs *Session) clickOnNext(query *tgbotapi.CallbackQuery) error {
 	bs.state.next()
 	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.BuilderInlineNextText)); err != nil {
-		return fmt.Errorf("send answer msg: %v", err)
+		return fmt.Errorf("send answer msg: %w", err)
 	}
 	bs.messageCh <- struct{}{}
 
@@ -323,22 +324,22 @@ func (bs *Session) clickOnNext(query *tgbotapi.CallbackQuery) error {
 
 func (bs *Session) clickOnDone(query *tgbotapi.CallbackQuery) error {
 	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.BuilderInlineDoneText)); err != nil {
-		return fmt.Errorf("send answer msg: %v", err)
+		return fmt.Errorf("send answer msg: %w", err)
 	}
 
 	if bs.numCategoriesIncluded() < minCategoriesNum {
-		msg := tgbotapi.NewMessage(bs.ChatId, resource.TextAddLeastCategoryToComplete)
+		msg := tgbotapi.NewMessage(bs.ChatID, resource.TextAddLeastCategoryToComplete)
 		if _, err := bs.tg.Send(msg); err != nil {
-			return fmt.Errorf("send msg: %v", err)
+			return fmt.Errorf("send msg: %w", err)
 		}
 
 		return nil
 	}
 
 	if !bs.lettersExist() {
-		msg := tgbotapi.NewMessage(bs.ChatId, resource.TextAddLeastOneLetterToComplete)
+		msg := tgbotapi.NewMessage(bs.ChatID, resource.TextAddLeastOneLetterToComplete)
 		if _, err := bs.tg.Send(msg); err != nil {
-			return fmt.Errorf("send msg: %v", err)
+			return fmt.Errorf("send msg: %w", err)
 		}
 
 		return nil
@@ -363,12 +364,12 @@ func (bs *Session) clickOnCategories(query *tgbotapi.CallbackQuery) error {
 	}
 
 	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, answer)); err != nil {
-		return fmt.Errorf("send answer msg: %v", err)
+		return fmt.Errorf("send answer msg: %w", err)
 	}
 
-	msg := tgbotapi.NewEditMessageReplyMarkup(bs.ChatId, bs.messageId, bs.menuInlineButtons(bs.renderInlineCategories()))
+	msg := tgbotapi.NewEditMessageReplyMarkup(bs.ChatID, bs.messageID, bs.menuInlineButtons(bs.renderInlineCategories()))
 	if _, err := bs.tg.Send(msg); err != nil {
-		return fmt.Errorf("send msg: %v", err)
+		return fmt.Errorf("send msg: %w", err)
 	}
 
 	return nil
@@ -377,11 +378,11 @@ func (bs *Session) clickOnCategories(query *tgbotapi.CallbackQuery) error {
 func (bs *Session) clickOnRoundsNum(query *tgbotapi.CallbackQuery) error {
 	n, err := strconv.Atoi(query.Data)
 	if err != nil {
-		return fmt.Errorf("strconv: %v", err)
+		return fmt.Errorf("strconv: %w", err)
 	}
 
 	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, fmt.Sprintf(resource.TextRoundsNumAnswer, n))); err != nil {
-		return fmt.Errorf("send answer msg: %v", err)
+		return fmt.Errorf("send answer msg: %w", err)
 	}
 
 	bs.RoundsNum = n
@@ -405,12 +406,12 @@ func (bs *Session) clickOnLetters(query *tgbotapi.CallbackQuery) error {
 	}
 
 	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, answer)); err != nil {
-		return fmt.Errorf("send answer msg: %v", err)
+		return fmt.Errorf("send answer msg: %w", err)
 	}
 
-	msg := tgbotapi.NewEditMessageReplyMarkup(bs.ChatId, bs.messageId, bs.menuInlineButtons(bs.renderInlineLetters()))
+	msg := tgbotapi.NewEditMessageReplyMarkup(bs.ChatID, bs.messageID, bs.menuInlineButtons(bs.renderInlineLetters()))
 	if _, err := bs.tg.Send(msg); err != nil {
-		return fmt.Errorf("send msg: %v", err)
+		return fmt.Errorf("send msg: %w", err)
 	}
 
 	return nil
@@ -419,11 +420,11 @@ func (bs *Session) clickOnLetters(query *tgbotapi.CallbackQuery) error {
 func (bs *Session) clickOnBloops(query *tgbotapi.CallbackQuery) error {
 	value, err := strconv.ParseBool(query.Data)
 	if err != nil {
-		return fmt.Errorf("strconv: %v", err)
+		return fmt.Errorf("strconv: %w", err)
 	}
 
 	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.BuilderInlineNextText)); err != nil {
-		return fmt.Errorf("send answer msg: %v", err)
+		return fmt.Errorf("send answer msg: %w", err)
 	}
 
 	bs.Bloops = value
@@ -436,11 +437,11 @@ func (bs *Session) clickOnBloops(query *tgbotapi.CallbackQuery) error {
 func (bs *Session) clickOnVote(query *tgbotapi.CallbackQuery) error {
 	value, err := strconv.ParseBool(query.Data)
 	if err != nil {
-		return fmt.Errorf("strconv: %v", err)
+		return fmt.Errorf("strconv: %w", err)
 	}
 
 	if _, err := bs.tg.AnswerCallbackQuery(tgbotapi.NewCallback(query.ID, resource.BuilderInlineNextText)); err != nil {
-		return fmt.Errorf("send answer msg: %v", err)
+		return fmt.Errorf("send answer msg: %w", err)
 	}
 
 	bs.Vote = value

@@ -2,12 +2,13 @@ package match
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	"github.com/bloops-games/bloops/internal/database/matchstate/model"
 	"github.com/bloops-games/bloops/internal/strpool"
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"strconv"
 )
 
 func thumbUpButton(n int) tgbotapi.InlineKeyboardButton {
@@ -96,8 +97,9 @@ func (r *Session) renderScores() string {
 
 	_, _ = fmt.Fprintf(buf, "%s %s", emoji.Trophy.String(), resource.TextLeaderboardHeader)
 
-	var medalIcon = func(n int) string {
+	medalIcon := func(n int) string {
 		var medal string
+
 		if n == 0 {
 			medal = emoji.FirstPlaceMedal.String()
 		} else if n == 1 {
@@ -179,6 +181,7 @@ func (r *Session) renderSetting() string {
 	return buf.String()
 }
 
+// nolint
 func (r *Session) renderPlayers() string {
 	buf := strpool.Get()
 	defer func() {
