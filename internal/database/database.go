@@ -1,9 +1,9 @@
 package database
 
 import (
-	"bloop/internal/logging"
 	"context"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/logging"
 	bolt "go.etcd.io/bbolt"
 )
 

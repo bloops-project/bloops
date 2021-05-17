@@ -1,8 +1,8 @@
 package bloopsbot
 
 import (
-	userModel "bloop/internal/database/user/model"
 	"fmt"
+	userModel "github.com/bloops-games/bloops/internal/database/user/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 

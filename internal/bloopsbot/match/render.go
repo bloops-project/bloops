@@ -1,10 +1,10 @@
 package match
 
 import (
-	"bloop/internal/bloopsbot/resource"
-	"bloop/internal/database/matchstate/model"
-	"bloop/internal/strpool"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
+	"github.com/bloops-games/bloops/internal/database/matchstate/model"
+	"github.com/bloops-games/bloops/internal/strpool"
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"strconv"

@@ -1,7 +1,7 @@
 package match
 
 import (
-	"bloop/internal/bloopsbot/resource"
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"time"
 )

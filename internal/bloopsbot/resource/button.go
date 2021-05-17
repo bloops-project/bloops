@@ -1,8 +1,8 @@
 package resource
 
 import (
-	"bloop/internal/hashutil"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/hashutil"
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )

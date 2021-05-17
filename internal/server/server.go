@@ -1,10 +1,10 @@
 package server
 
 import (
-	"bloop/internal/logging"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/logging"
 	"net"
 	"net/http"
 	"strconv"

@@ -1,12 +1,12 @@
 package database
 
 import (
-	"bloop/internal/byteutil"
-	"bloop/internal/cache"
-	"bloop/internal/database"
-	"bloop/internal/database/user/model"
 	"encoding/json"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/byteutil"
+	"github.com/bloops-games/bloops/internal/cache"
+	"github.com/bloops-games/bloops/internal/database"
+	"github.com/bloops-games/bloops/internal/database/user/model"
 	bolt "go.etcd.io/bbolt"
 )
 

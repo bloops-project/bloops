@@ -1,10 +1,10 @@
 package builder
 
 import (
-	"bloop/internal/bloopsbot/resource"
-	"bloop/internal/logging"
 	"context"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
+	"github.com/bloops-games/bloops/internal/logging"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"strconv"
 	"sync"

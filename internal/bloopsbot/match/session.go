@@ -1,13 +1,13 @@
 package match
 
 import (
-	"bloop/internal/bloopsbot/resource"
-	"bloop/internal/bloopsbot/util"
-	"bloop/internal/database/matchstate/model"
-	"bloop/internal/logging"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
+	"github.com/bloops-games/bloops/internal/bloopsbot/util"
+	"github.com/bloops-games/bloops/internal/database/matchstate/model"
+	"github.com/bloops-games/bloops/internal/logging"
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/valyala/fastrand"

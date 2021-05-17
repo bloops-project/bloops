@@ -1,8 +1,8 @@
 package model
 
 import (
-	userModel "bloop/internal/database/user/model"
-	"bloop/internal/strpool"
+	userModel "github.com/bloops-games/bloops/internal/database/user/model"
+	"github.com/bloops-games/bloops/internal/strpool"
 	"github.com/enescakir/emoji"
 	"strconv"
 )

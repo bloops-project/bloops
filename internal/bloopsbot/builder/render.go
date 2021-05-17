@@ -1,8 +1,8 @@
 package builder
 
 import (
-	"bloop/internal/bloopsbot/resource"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	"github.com/enescakir/emoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"strconv"

@@ -1,11 +1,11 @@
 package bloopsbot
 
 import (
-	"bloop/internal/bloopsbot/resource"
-	statModel "bloop/internal/database/stat/model"
-	userModel "bloop/internal/database/user/model"
-	"bloop/internal/strpool"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
+	statModel "github.com/bloops-games/bloops/internal/database/stat/model"
+	userModel "github.com/bloops-games/bloops/internal/database/user/model"
+	"github.com/bloops-games/bloops/internal/strpool"
 	"github.com/enescakir/emoji"
 	"strconv"
 	"time"

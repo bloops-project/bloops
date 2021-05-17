@@ -1,7 +1,7 @@
 package bloopsbot
 
 import (
-	"bloop/internal/database"
+	"github.com/bloops-games/bloops/internal/database"
 	"time"
 )
 

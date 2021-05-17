@@ -1,23 +1,24 @@
 package main
 
 import (
-	"bloop/internal/bloopsbot"
-	"bloop/internal/bloopsbot/resource"
-	"bloop/internal/cache/cachelru"
-	"bloop/internal/database"
-	stateDb "bloop/internal/database/matchstate/database"
-	statDb "bloop/internal/database/stat/database"
-	userdb "bloop/internal/database/user/database"
-	"bloop/internal/logging"
-	"bloop/internal/server"
-	"bloop/internal/shutdown"
 	"context"
 	"fmt"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"github.com/kelseyhightower/envconfig"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+
+	"github.com/bloops-games/bloops/internal/bloopsbot"
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
+	"github.com/bloops-games/bloops/internal/cache/cachelru"
+	"github.com/bloops-games/bloops/internal/database"
+	stateDb "github.com/bloops-games/bloops/internal/database/matchstate/database"
+	statDb "github.com/bloops-games/bloops/internal/database/stat/database"
+	userdb "github.com/bloops-games/bloops/internal/database/user/database"
+	"github.com/bloops-games/bloops/internal/logging"
+	"github.com/bloops-games/bloops/internal/server"
+	"github.com/bloops-games/bloops/internal/shutdown"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/kelseyhightower/envconfig"
 )
 
 var version string

@@ -1,7 +1,7 @@
 package model
 
 import (
-	"bloop/internal/bloopsbot/resource"
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	"time"
 )
 

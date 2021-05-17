@@ -1,10 +1,10 @@
 package hashutil
 
 import (
-	"bloop/internal/bytespool"
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/bytespool"
 	"strconv"
 	"time"
 )

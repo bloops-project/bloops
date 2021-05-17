@@ -1,8 +1,8 @@
 package cachelru
 
 import (
-	"bloop/internal/cache"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/cache"
 	lru "github.com/hashicorp/golang-lru"
 )
 

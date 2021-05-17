@@ -1,18 +1,19 @@
 package main
 
 import (
-	"bloop/internal/httputil"
-	"bloop/internal/logging"
-	"bloop/internal/shutdown"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/kelseyhightower/envconfig"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/bloops-games/bloops/internal/httputil"
+	"github.com/bloops-games/bloops/internal/logging"
+	"github.com/bloops-games/bloops/internal/shutdown"
+	"github.com/kelseyhightower/envconfig"
 )
 
 type Config struct {

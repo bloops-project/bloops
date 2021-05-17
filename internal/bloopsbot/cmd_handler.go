@@ -1,12 +1,12 @@
 package bloopsbot
 
 import (
-	"bloop/internal/bloopsbot/resource"
-	matchstateModel "bloop/internal/database/matchstate/model"
-	userDb "bloop/internal/database/user/database"
-	userModel "bloop/internal/database/user/model"
 	"errors"
 	"fmt"
+	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
+	matchstateModel "github.com/bloops-games/bloops/internal/database/matchstate/model"
+	userDb "github.com/bloops-games/bloops/internal/database/user/database"
+	userModel "github.com/bloops-games/bloops/internal/database/user/model"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"strings"
 )
