@@ -3,25 +3,64 @@ before:
     - go mod download
     - go generate ./...
 builds:
-  - main: ./cmd/bloops-cli
-    id: cli
+  - id: bloops-cli
+    main: ./cmd/bloops-cli
+    binary: bloops-cli
     env:
       - CGO_ENABLED=0
+      - GO111MODULE=on
     goos:
       - freebsd
       - linux
       - windows
       - darwin
     ldflags:
-      - -s -w -X main.version={{.Version}}
-    binary: bloops-cli
+      - -s -w -X main.version={{.Version}} -extldflags '-static'
+
+  - id: bloops-server
+    main: ./cmd/bloops-srv
+    binary: bloops-server
+    env:
+      - CGO_ENABLED=0
+      - GO111MODULE=on
+    goos:
+      - freebsd
+      - linux
+      - windows
+      - darwin
+    ldflags:
+      - -s -w -X main.version={{.Version}} -extldflags '-static'
+
 archives:
-  - replacements:
+  - id: bloops-server
+    builds:
+    - bloops-server
+    name_template: "bloops-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    replacements:
       darwin: MacOSX
       linux: Linux
       windows: Windows
       386: i386
       amd64: x86_64
+
+  - id: bloops-cli
+    builds:
+    - bloops-cli
+    name_template: "bloops-cli{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    replacements:
+      darwin: MacOSX
+      linux: Linux
+      windows: Windows
+      386: i386
+      amd64: x86_64
+#nfpms:
+#  - vendor: bloops
+#    homepage: https://github.com/robotomize/bloops
+#    maintainer: Nikita Ivanov
+#    description: This is a telegram bot 🤖 for organizing quizzes similar to quizzes in tiktok, where you need to
+#      30 seconds name a few words from the proposed categories at a random letter.
+#    license: MIT
+#    formats: [ deb, rpm ]
 checksum:
   name_template: 'checksums.txt'
 snapshot:
@@ -35,4 +74,4 @@ changelog:
 release:
   github:
     owner: robotomize
-    name: bloops
+    name: bloops-games/bloops
