@@ -24,7 +24,6 @@ builds:
       - CGO_ENABLED=0
       - GO111MODULE=on
     goos:
-      - freebsd
       - linux
       - windows
       - darwin
@@ -40,7 +39,6 @@ archives:
       darwin: MacOSX
       linux: Linux
       windows: Windows
-      386: i386
       amd64: x86_64
 
   - id: bloops-cli
@@ -51,7 +49,6 @@ archives:
       darwin: MacOSX
       linux: Linux
       windows: Windows
-      386: i386
       amd64: x86_64
 #nfpms:
 #  - vendor: bloops
@@ -73,5 +70,5 @@ changelog:
       - '^test:'
 release:
   github:
-    owner: robotomize
-    name: bloops-games/bloops
+    owner: bloops-games
+    name: bloops
