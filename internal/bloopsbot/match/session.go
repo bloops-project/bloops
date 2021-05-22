@@ -82,18 +82,17 @@ func NewSession(config Config) *Session {
 }
 
 type Session struct {
-	mtx sync.RWMutex
-
 	Config Config
 
 	Code      int64
-	Players   []*model.Player
 	CreatedAt time.Time
 
-	tg          *tgbotapi.BotAPI
-	stateCh     chan uint8
-	msgCallback map[int]QueryCallbackHandlerFn
+	tg      *tgbotapi.BotAPI
+	stateCh chan uint8
 
+	mtx          sync.RWMutex
+	msgCallback  map[int]QueryCallbackHandlerFn
+	Players      []*model.Player
 	CurrRoundIdx int
 	State        uint8
 

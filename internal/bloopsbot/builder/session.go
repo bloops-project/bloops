@@ -73,6 +73,9 @@ func NewSession(
 	s.Letters = make([]resource.Letter, len(resource.Letters))
 	copy(s.Letters, resource.Letters)
 
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	s.handleControlCb(resource.BuilderInlineNextData, s.clickOnNext)
 	s.handleControlCb(resource.BuilderInlinePrevData, s.clickOnPrev)
 	s.handleControlCb(resource.BuilderInlineDoneData, s.clickOnDone)
@@ -87,8 +90,6 @@ func NewSession(
 }
 
 type Session struct {
-	mtx sync.RWMutex
-
 	AuthorID   int64
 	AuthorName string
 	Categories []resource.Category
@@ -107,12 +108,15 @@ type Session struct {
 
 	messageID int
 
-	timeout         time.Duration
+	timeout time.Duration
+
+	mtx             sync.RWMutex
 	controlHandlers map[string]QueryCallbackHandlerFunc
 	actionHandlers  map[stateKind]QueryCallbackHandlerFunc
-	cancel          func()
-	doneFn          func(session *Session) error
-	warnFn          func(session *Session) error
+
+	cancel func()
+	doneFn func(session *Session) error
+	warnFn func(session *Session) error
 }
 
 func (bs *Session) Run(ctx context.Context) {

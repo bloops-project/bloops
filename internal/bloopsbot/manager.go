@@ -72,10 +72,10 @@ func (t commandHandler) execute(u userModel.User, chatID int64) error {
 }
 
 type manager struct {
-	mtx sync.RWMutex
-
 	tg     *tgbotapi.BotAPI
 	config *Config
+
+	mtx sync.RWMutex
 	// key: UserID active building session
 	userBuildingSessions map[int64]*builder.Session
 	// key: UserID active playing session

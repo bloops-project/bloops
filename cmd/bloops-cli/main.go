@@ -43,7 +43,7 @@ func main() {
 
 	logger := logging.NewLogger(config.Debug)
 	if err := realMain(ctx, config, done); err != nil {
-		logger.Fatalf("main.realMain: %w", err)
+		logger.Fatalf("main.realMain: %v", err)
 	}
 }
 
