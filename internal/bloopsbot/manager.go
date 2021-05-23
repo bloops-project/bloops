@@ -228,7 +228,7 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 			u, err := m.recvUser(update)
 			if err != nil {
 				logger.Errorf("recv user: %v", err)
-				return
+				continue
 			}
 
 			if update.Message != nil {
@@ -238,7 +238,7 @@ func (m *manager) pool(ctx context.Context, wg *sync.WaitGroup, updCh tgbotapi.U
 					if _, err := m.tg.Send(msg); err != nil {
 						logger.Errorf("send msg: %v", err)
 					}
-					return
+					continue
 				}
 
 				if err := m.route(ctx, u, update); err != nil {
