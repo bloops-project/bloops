@@ -26,17 +26,20 @@ import (
 )
 
 type (
-	commandCbHandlerFunc  func(string) error
+	commandCbHandlerFunc  = func(string) error
 	commandHandlerFunc    = func(userModel.User, int64) error
 	commandMiddlewareFunc = func(userModel.User, int64) (bool, error)
 )
 
-var (
-	ErrTelegramResponseTypeNotFound = fmt.Errorf("telegram response not found")
-	ErrCmdTextHandlerNotFound       = fmt.Errorf("command text handler not found")
-)
+var ErrTelegramResponseTypeNotFound = fmt.Errorf("telegram response not found")
 
-func NewManager(tg *tgbotapi.BotAPI, config *Config, userDB *userDb.DB, statDB *statDb.DB, stateDB *stateDB.DB) *manager {
+func NewManager(
+	tg *tgbotapi.BotAPI,
+	config *Config,
+	userDB *userDb.DB,
+	statDB *statDb.DB,
+	stateDB *stateDB.DB,
+) *manager {
 	return &manager{
 		tg:                   tg,
 		config:               config,
@@ -123,7 +126,7 @@ func (m *manager) Run(ctx context.Context) error {
 
 		updates = m.tg.ListenForWebhook("/" + m.config.BotToken)
 		go func() {
-			if err := http.ListenAndServe(":4444", nil); err != nil {
+			if err := http.ListenAndServe(m.config.BotWebhookAddr, nil); err != nil {
 				logger.Fatalf("listen and serve http stopped: %v", err)
 				cancel()
 			}
@@ -153,21 +156,54 @@ func (m *manager) Run(ctx context.Context) error {
 	userMiddleware := []commandMiddlewareFunc{m.isActive}
 	adminMiddleware := []commandMiddlewareFunc{m.isAdmin}
 	// register text command handlers
-	m.registerCommandHandler(resource.CmdStart, commandHandler{commandFn: m.handleStartCommand, middlewareFn: userMiddleware})
-	m.registerCommandHandler(resource.CmdFeedback, commandHandler{commandFn: m.handleFeedbackCommand, middlewareFn: userMiddleware})
-	m.registerCommandHandler(resource.CmdRules, commandHandler{commandFn: m.handleRulesButton, middlewareFn: userMiddleware})
-	m.registerCommandHandler(resource.CmdProfile, commandHandler{commandFn: m.handleProfileCmd, middlewareFn: userMiddleware})
-	m.registerCommandHandler(resource.ProfileButtonText, commandHandler{commandFn: m.handleProfileButton, middlewareFn: userMiddleware})
-	m.registerCommandHandler(resource.CreateButtonText, commandHandler{commandFn: m.handleCreateButton, middlewareFn: userMiddleware})
-	m.registerCommandHandler(resource.JoinButtonText, commandHandler{commandFn: m.handleJoinButton, middlewareFn: userMiddleware})
-	m.registerCommandHandler(resource.LeaveButtonText, commandHandler{commandFn: m.handleButtonExit, middlewareFn: userMiddleware})
-	m.registerCommandHandler(resource.RuleButtonText, commandHandler{commandFn: m.handleRulesButton, middlewareFn: userMiddleware})
-	m.registerCommandHandler(resource.CmdAddPlayer, commandHandler{commandFn: m.handleRegisterOfflinePlayerCmd, middlewareFn: userMiddleware})
-	m.registerCommandHandler(resource.CmdBan, commandHandler{commandFn: m.handleBanCommand, middlewareFn: adminMiddleware})
+	m.registerCommandHandler(
+		resource.CmdStart,
+		commandHandler{commandFn: m.handleStartCommand, middlewareFn: userMiddleware},
+	)
+	m.registerCommandHandler(
+		resource.CmdFeedback,
+		commandHandler{commandFn: m.handleFeedbackCommand, middlewareFn: userMiddleware},
+	)
+	m.registerCommandHandler(
+		resource.CmdRules,
+		commandHandler{commandFn: m.handleRulesButton, middlewareFn: userMiddleware},
+	)
+	m.registerCommandHandler(
+		resource.CmdProfile,
+		commandHandler{commandFn: m.handleProfileCmd, middlewareFn: userMiddleware},
+	)
+	m.registerCommandHandler(
+		resource.ProfileButtonText,
+		commandHandler{commandFn: m.handleProfileButton, middlewareFn: userMiddleware},
+	)
+	m.registerCommandHandler(
+		resource.CreateButtonText,
+		commandHandler{commandFn: m.handleCreateButton, middlewareFn: userMiddleware},
+	)
+	m.registerCommandHandler(
+		resource.JoinButtonText,
+		commandHandler{commandFn: m.handleJoinButton, middlewareFn: userMiddleware},
+	)
+	m.registerCommandHandler(
+		resource.LeaveButtonText,
+		commandHandler{commandFn: m.handleButtonExit, middlewareFn: userMiddleware},
+	)
+	m.registerCommandHandler(
+		resource.RuleButtonText,
+		commandHandler{commandFn: m.handleRulesButton, middlewareFn: userMiddleware},
+	)
+	m.registerCommandHandler(
+		resource.CmdAddPlayer,
+		commandHandler{commandFn: m.handleRegisterOfflinePlayerCmd, middlewareFn: userMiddleware},
+	)
+	m.registerCommandHandler(
+		resource.CmdBan,
+		commandHandler{commandFn: m.handleBanCommand, middlewareFn: adminMiddleware},
+	)
 
-	// deserialize not completed sessions
-	if err := m.deserialize(); err != nil {
-		return fmt.Errorf("deserialize: %w", err)
+	// restoreInterruptedGames not completed sessions
+	if err := m.restoreInterruptedGames(); err != nil {
+		return fmt.Errorf("restoreInterruptedGames: %w", err)
 	}
 
 	wg := &sync.WaitGroup{}
@@ -378,8 +414,8 @@ func (m *manager) matchWarnFn(session *match.Session) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	if err := m.serialize(session); err != nil {
-		return fmt.Errorf("serialize match session: %w", err)
+	if err := m.serializeGames(session); err != nil {
+		return fmt.Errorf("serializeGames match session: %w", err)
 	}
 
 	for _, player := range session.Players {
@@ -568,7 +604,7 @@ func NewMatchSessionFromSerialized(
 	return s
 }
 
-func (m *manager) serialize(session *match.Session) error {
+func (m *manager) serializeGames(session *match.Session) error {
 	s := matchstateModel.State{
 		Timeout:      session.Config.Timeout,
 		AuthorID:     session.Config.AuthorID,
@@ -598,11 +634,12 @@ func (m *manager) serialize(session *match.Session) error {
 	return nil
 }
 
-func (m *manager) deserialize() error {
+func (m *manager) restoreInterruptedGames() error {
 	states, err := m.stateDB.FetchAll()
 	if err != nil && !errors.Is(err, stateDB.ErrEntryNotFound) {
 		return fmt.Errorf("stat db fetch all: %w", err)
 	}
+
 	m.mtx.Lock()
 	for _, state := range states {
 		session := NewMatchSessionFromSerialized(state, m.tg, m.matchDoneFn, m.matchWarnFn)
@@ -655,8 +692,10 @@ func (m *manager) appendStat(session *match.Session) error {
 		stat.PlayersNum = len(session.Players)
 
 		var (
-			bestDuration, worstDuration, sumDuration, durationNum time.Duration = 2 << 31, 0, 0, 0
-			bestPoints, worstPoints, sumPoints, pointsNum                       = 0, 2 << 28, 0, 0
+			bestDuration, worstDuration time.Duration = 2 << 31, 0
+			sumDuration, durationNum    time.Duration = 0, 0
+			bestPoints, worstPoints                   = 0, 2 << 28
+			sumPoints, pointsNum                      = 0, 0
 		)
 
 		for _, rate := range player.Rates {
