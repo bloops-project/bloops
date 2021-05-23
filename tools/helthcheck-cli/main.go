@@ -46,6 +46,7 @@ func main() {
 		ExpectContinueTimeout: 1 * time.Second,
 		ResponseHeaderTimeout: 10 * time.Second,
 	}))
+
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, config.URL, nil)
 	if err != nil {
 		logger.Fatalf("new request: %v", err)
@@ -54,6 +55,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("client get: %v", err)
 	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {

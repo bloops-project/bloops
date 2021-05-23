@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/bloops-games/bloops/internal/cache"
+
 	"github.com/bloops-games/bloops/internal/bloopsbot"
 	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
-	"github.com/bloops-games/bloops/internal/cache/cachelru"
 	"github.com/bloops-games/bloops/internal/database"
 	stateDb "github.com/bloops-games/bloops/internal/database/matchstate/database"
 	statDb "github.com/bloops-games/bloops/internal/database/stat/database"
@@ -131,12 +132,12 @@ func realMain(ctx context.Context, config bloopsbot.Config, done func()) error {
 
 	defer db.Close(ctx)
 
-	userCache, err := cachelru.NewLRU(config.CacheSize)
+	userCache, err := cache.NewLRU(config.CacheSize)
 	if err != nil {
 		return fmt.Errorf("can not create lru cache: %w", err)
 	}
 
-	statCache, err := cachelru.NewLRU(config.CacheSize)
+	statCache, err := cache.NewLRU(config.CacheSize)
 	if err != nil {
 		return fmt.Errorf("can not create lru cache: %w", err)
 	}

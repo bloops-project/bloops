@@ -1,9 +1,8 @@
-package cachelru
+package cache
 
 import (
 	"fmt"
 
-	"github.com/bloops-games/bloops/internal/cache"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -16,7 +15,7 @@ func NewLRU(size int) (*LRU, error) {
 	return &LRU{cache: c}, nil
 }
 
-var _ cache.Cache = (*LRU)(nil)
+var _ Cache = (*LRU)(nil)
 
 type LRU struct {
 	cache *lru.ARCCache
