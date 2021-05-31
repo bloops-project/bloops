@@ -11,9 +11,12 @@ WORKDIR /src
 
 COPY . .
 
+ENV BUILD_INFO_PACKAGE=github.com/bloops-games/bloops/internal/buildinfo
+ENV BUILD_NAME=bloopsbot-srv
+
 RUN go build \
   -trimpath \
-  -ldflags "-s -w -X main.version=$(git describe --tags --abbrev=0) -extldflags '-static'" \
+  -ldflags "-s -w -X $BUILD_INFO_PACKAGE.BuildTag=$(git describe --tags --abbrev=0) -X $BUILD_INFO_PACKAGE.Time=$(date -u '+%Y-%m-%d-%H:%M') -X $BUILD_INFO_PACKAGE.Name=$BUILD_NAME -extldflags '-static'" \
   -installsuffix cgo \
   -tags netgo \
   -o /app/bot \
