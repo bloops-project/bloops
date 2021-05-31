@@ -8,6 +8,12 @@ GOOS?=linux
 GOARCH=amd64
 GO111MODULE?=on
 
+BUILD_INFO_PACKAGE = github.com/bloops-games/bloops/internal/buildinfo
+BUILD_TAG=$(shell git describe --tags --abbrev=0)
+BUILD_TIME?=$(shell date -u '+%Y-%m-%d-%H:%M')
+BUILD_NAME_CLI?= bloopsbot-cli
+BUILD_NAME_SRV?= bloopsbot-srv
+
 unittest:
 	@$(GO_CMD) test -short $$(go list ./... | grep -v /vendor/)
 
@@ -21,13 +27,13 @@ test-cover:
 srv:
 	GOARCH=${GOARCH} GO111MODULE=${GO111MODULE} CGO_ENABLED=0 GOOS=${GOOS} \
 $(GO_CMD) build -o build/bloops-srv -trimpath \
--ldflags "-s -w -X main.version=${RELEASE}" \
+-ldflags "-s -w -X ${BUILD_INFO_PACKAGE}.BuildTag=${BUILD_TAG} -X ${BUILD_INFO_PACKAGE}.Time=${BUILD_TIME} -X ${BUILD_INFO_PACKAGE}.Name=${BUILD_NAME_CLI}" \
 ./cmd/bloops-srv
 
 cli:
 	GOARCH=${GOARCH} GO111MODULE=${GO111MODULE} CGO_ENABLED=0 GOOS=${GOOS} \
 $(GO_CMD) build -o build/bloops-cli -trimpath \
--ldflags "-s -w -X main.version=${RELEASE}" \
+-ldflags "-s -w -X ${BUILD_INFO_PACKAGE}.BuildTag=${BUILD_TAG} -X ${BUILD_INFO_PACKAGE}.Time=${BUILD_TIME} -X ${BUILD_INFO_PACKAGE}.Name=${BUILD_NAME_CLI}" \
 ./cmd/bloops-cli
 
 docker-dev:

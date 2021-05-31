@@ -23,15 +23,14 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-var version string
-
 func main() {
 	_, _ = fmt.Fprint(os.Stdout, buildinfo.Graffiti)
 	_, _ = fmt.Fprintf(
 		os.Stdout,
 		buildinfo.GreetingCLI,
-		buildinfo.ProjectName,
-		version,
+		buildinfo.Info.Name(),
+		buildinfo.Info.Tag(),
+		buildinfo.Info.Time(),
 		buildinfo.TgBloopURL,
 		buildinfo.GithubBloopURL,
 	)
