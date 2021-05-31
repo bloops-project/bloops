@@ -20,6 +20,7 @@ func (m *manager) handleStartCommand(u userModel.User, chatID int64) error {
 	if _, err := m.tg.Send(msg); err != nil {
 		return fmt.Errorf("send msg: %w", err)
 	}
+
 	return nil
 }
 
@@ -39,6 +40,7 @@ func (m *manager) handleBanCommand(u userModel.User, chatID int64) error {
 					return fmt.Errorf("send msg: %w", err)
 				}
 			}
+
 			return fmt.Errorf("fetch by username: %w", err)
 		}
 
@@ -46,6 +48,7 @@ func (m *manager) handleBanCommand(u userModel.User, chatID int64) error {
 			if _, err := m.tg.Send(tgbotapi.NewMessage(chatID, "Нельзя забанить администратора")); err != nil {
 				return fmt.Errorf("send msg: %w", err)
 			}
+
 			return nil
 		}
 

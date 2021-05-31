@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/bloops-games/bloops/internal/buildinfo"
+
 	"github.com/bloops-games/bloops/internal/cache"
 
 	"github.com/bloops-games/bloops/internal/bloopsbot"
-	"github.com/bloops-games/bloops/internal/bloopsbot/resource"
 	"github.com/bloops-games/bloops/internal/database"
 	stateDb "github.com/bloops-games/bloops/internal/database/matchstate/database"
 	statDb "github.com/bloops-games/bloops/internal/database/stat/database"
@@ -24,14 +25,14 @@ import (
 var version string
 
 func main() {
-	_, _ = fmt.Fprint(os.Stdout, resource.Graffiti)
+	_, _ = fmt.Fprint(os.Stdout, buildinfo.Graffiti)
 	_, _ = fmt.Fprintf(
 		os.Stdout,
-		resource.GreetingCLI,
-		resource.ProjectName,
+		buildinfo.GreetingCLI,
+		buildinfo.ProjectName,
 		version,
-		resource.TgBloopURL,
-		resource.GithubBloopURL,
+		buildinfo.TgBloopURL,
+		buildinfo.GithubBloopURL,
 	)
 
 	ctx, done := shutdown.New()
@@ -50,14 +51,14 @@ func main() {
 
 func realMain(ctx context.Context, config bloopsbot.Config, done func()) error {
 	logger := logging.FromContext(ctx).Named("main.realMain")
-	_, _ = fmt.Fprint(os.Stdout, resource.Graffiti)
+	_, _ = fmt.Fprint(os.Stdout, buildinfo.Graffiti)
 	_, _ = fmt.Fprintf(
 		os.Stdout,
-		resource.GreetingCLI,
-		resource.ProjectName,
+		buildinfo.GreetingCLI,
+		buildinfo.ProjectName,
 		version,
-		resource.TgBloopURL,
-		resource.GithubBloopURL,
+		buildinfo.TgBloopURL,
+		buildinfo.GithubBloopURL,
 	)
 
 	var token string
@@ -72,7 +73,7 @@ func realMain(ctx context.Context, config bloopsbot.Config, done func()) error {
 		}
 		if token == "" {
 			_, _ = fmt.Fprintf(os.Stdout, "bot token not found, please visit %s to register your bot and get a token",
-				resource.BotFatherURL)
+				buildinfo.BotFatherURL)
 			continue
 		}
 
@@ -108,7 +109,7 @@ func realMain(ctx context.Context, config bloopsbot.Config, done func()) error {
 	if username == "" {
 		return fmt.Errorf(
 			"bot token not found, please visit %s to register your bot and get a token",
-			resource.BotFatherURL,
+			buildinfo.BotFatherURL,
 		)
 	}
 

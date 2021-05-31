@@ -1,4 +1,4 @@
-package resource
+package buildinfo
 
 const (
 	ProjectName    = "bloopsbot"
