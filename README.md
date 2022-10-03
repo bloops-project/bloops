@@ -40,7 +40,7 @@ No😔, only in Russian
 🚀 [PLAY](https://t.me/bloops_bot)
 
 ## Site
-🖥🖱🌍 [bloops.fun](https://bloops.ru)
+🖥🖱🌍 [bloops.ru](https://bloops.ru)
 
 ## Development
 This is shitty code, I know there is no testing in it, but this is my little hackathon to get it done quickly for the holidays
